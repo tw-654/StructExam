@@ -1,0 +1,25 @@
+# Common layer for Maven dependencies
+FROM maven:3.9.6-eclipse-temurin-17 AS builder
+
+WORKDIR /app
+
+COPY backend/pom.xml ./pom.xml
+COPY backend/common/pom.xml ./common/pom.xml
+COPY backend/common/src ./common/src
+COPY backend/gateway/pom.xml ./gateway/pom.xml
+COPY backend/gateway/src ./gateway/src
+COPY backend/services/user-service/pom.xml ./services/user-service/pom.xml
+COPY backend/services/user-service/src ./services/user-service/src
+COPY backend/services/exam-service/pom.xml ./services/exam-service/pom.xml
+COPY backend/services/exam-service/src ./services/exam-service/src
+COPY backend/services/code-service/pom.xml ./services/code-service/pom.xml
+COPY backend/services/code-service/src ./services/code-service/src
+
+RUN mvn clean package -DskipTests -pl common,gateway,services/user-service,services/exam-service,services/code-service -am
+
+# Exam Service
+FROM eclipse-temurin:17-jre-alpine
+WORKDIR /app
+COPY --from=builder /app/services/exam-service/target/*.jar app.jar
+EXPOSE 8082
+ENTRYPOINT ["java", "-jar", "app.jar"]
