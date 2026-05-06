@@ -49,7 +49,20 @@ public class ExamService {
         }
 
         wrapper.orderByDesc(Exam::getCreateTime);
-        return examMapper.selectPage(page, wrapper);
+        Page<Exam> result = examMapper.selectPage(page, wrapper);
+
+        LocalDateTime now = LocalDateTime.now();
+        for (Exam exam : result.getRecords()) {
+            if (now.isBefore(exam.getStartTime())) {
+                exam.setStatus("PUBLISHED");
+            } else if (now.isAfter(exam.getEndTime())) {
+                exam.setStatus("FINISHED");
+            } else {
+                exam.setStatus("ONGOING");
+            }
+        }
+
+        return result;
     }
 
     public ExamDetailDTO getExamDetail(Long examId, Long userId) {
