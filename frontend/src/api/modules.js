@@ -35,6 +35,9 @@ export const examApi = {
   },
   getRecord(id) {
     return api.get(`/exam/record/${id}`)
+  },
+  getRecordList() {
+    return api.get('/exam/record/list')
   }
 }
 

@@ -28,6 +28,13 @@ public class ExamController {
         return ApiResponse.success(page);
     }
 
+    @GetMapping("/record/list")
+    public ApiResponse<List<ExamRecord>> getExamRecords(
+            @RequestHeader("X-User-Id") Long userId) {
+        List<ExamRecord> records = examService.getExamRecordsByUserId(userId);
+        return ApiResponse.success(records);
+    }
+
     @GetMapping("/{id}")
     public ApiResponse<ExamDetailDTO> getExamDetail(
             @PathVariable Long id,

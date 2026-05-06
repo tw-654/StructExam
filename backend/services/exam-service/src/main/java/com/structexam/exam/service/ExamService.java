@@ -161,6 +161,14 @@ public class ExamService {
         );
     }
 
+    public List<ExamRecord> getExamRecordsByUserId(Long userId) {
+        return examRecordMapper.selectList(
+                new LambdaQueryWrapper<ExamRecord>()
+                        .eq(ExamRecord::getUserId, userId)
+                        .orderByDesc(ExamRecord::getEnterTime)
+        );
+    }
+
     public void submitExam(Long examId, Long userId) {
         ExamRecord record = getExamRecord(examId, userId);
         if (record == null) {

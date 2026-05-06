@@ -43,8 +43,8 @@ const records = ref([])
 const loadRecords = async () => {
   loading.value = true
   try {
-    const res = await examApi.getList(1, 100)
-    records.value = res.data.records || []
+    const res = await examApi.getRecordList()
+    records.value = res.data || []
   } catch (error) {
     console.error('Failed to load records:', error)
   } finally {
