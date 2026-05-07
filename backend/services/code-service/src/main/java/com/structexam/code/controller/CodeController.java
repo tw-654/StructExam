@@ -1,7 +1,10 @@
 package com.structexam.code.controller;
 
+import com.structexam.code.service.CodeSandboxService;
 import com.structexam.code.service.CodeService;
 import com.structexam.common.dto.ApiResponse;
+import com.structexam.common.dto.CodeExecuteRequest;
+import com.structexam.common.dto.CodeExecuteResponse;
 import com.structexam.common.dto.CodeSaveRequest;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
@@ -14,6 +17,9 @@ public class CodeController {
 
     @Autowired
     private CodeService codeService;
+
+    @Autowired
+    private CodeSandboxService codeSandboxService;
 
     @PostMapping("/save")
     public ApiResponse<Void> saveCode(
@@ -48,5 +54,11 @@ public class CodeController {
             @PathVariable Long examId) {
         codeService.submitAllCode(userId, examId);
         return ApiResponse.success("All code submitted successfully", null);
+    }
+
+    @PostMapping("/run")
+    public ApiResponse<CodeExecuteResponse> runCode(@RequestBody CodeExecuteRequest request) {
+        CodeExecuteResponse response = codeSandboxService.executeCode(request);
+        return ApiResponse.success(response.getMessage(), response);
     }
 }

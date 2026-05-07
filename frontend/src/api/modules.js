@@ -62,5 +62,8 @@ export const codeApi = {
   },
   submitAll(examId) {
     return api.post(`/code/submitAll/${examId}`)
+  },
+  run(data) {
+    return api.post('/code/run', data)
   }
 }

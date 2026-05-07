@@ -51,18 +51,41 @@
         <div class="editor-container">
           <div class="editor-header">
             <span>代码编辑器</span>
-            <el-select v-model="language" size="small" style="width: 120px">
-              <el-option label="Java" value="java" />
-              <el-option label="C++" value="cpp" />
-              <el-option label="Python" value="python" />
-            </el-select>
+            <div class="editor-actions">
+              <el-button type="primary" size="small" @click="handleRunCode">运行</el-button>
+              <el-button type="warning" size="small" @click="handleStopCode" :disabled="!isRunning">停止</el-button>
+              <el-select v-model="language" size="small" style="width: 120px">
+                <el-option label="Java" value="java" />
+                <el-option label="C++" value="cpp" />
+                <el-option label="Python" value="python" />
+              </el-select>
+            </div>
           </div>
           <div ref="editorRef" class="monaco-editor"></div>
         </div>
 
-        <div class="result-container" v-if="showResult">
-          <div class="result-header">运行结果</div>
-          <pre class="result-output">{{ runResult }}</pre>
+        <div class="terminal-container" v-if="showTerminal">
+          <div class="terminal-header">
+            <span>终端</span>
+            <span class="terminal-status" :class="{ running: isRunning }">{{ isRunning ? '运行中' : '已停止' }}</span>
+          </div>
+          <div class="terminal-body" ref="terminalRef">
+            <div v-for="(line, index) in terminalLines" :key="index" :class="line.type">
+              <span v-if="line.type === 'input'">></span>
+              {{ line.content }}
+            </div>
+            <div v-if="isWaitingInput" class="input-prompt">
+              <span>> </span>
+              <input 
+                ref="terminalInputRef"
+                v-model="terminalInput" 
+                @keydown.enter="handleTerminalInput" 
+                class="terminal-input"
+                :disabled="!isWaitingInput"
+                placeholder="输入数据..."
+              />
+            </div>
+          </div>
         </div>
       </el-main>
     </el-container>
@@ -89,6 +112,15 @@ const editorRef = ref(null)
 let editor = null
 
 const remainingSeconds = ref(0)
+
+const showTerminal = ref(false)
+const isRunning = ref(false)
+const isWaitingInput = ref(false)
+const terminalLines = ref([])
+const terminalInput = ref('')
+const terminalInputRef = ref(null)
+const terminalRef = ref(null)
+const inputQueue = ref([])
 let timer = null
 
 const currentQuestion = computed(() => {
@@ -99,6 +131,7 @@ const answeredQuestions = ref([])
 
 const showResult = ref(false)
 const runResult = ref('')
+const inputData = ref('')
 
 const formattedTime = computed(() => {
   const hours = Math.floor(remainingSeconds.value / 3600)
@@ -188,6 +221,103 @@ int main() {
 const handleSaveCode = async () => {
   await saveCurrentCode()
   ElMessage.success('Code saved')
+}
+
+const handleRunCode = async () => {
+  if (!editor) return
+
+  showTerminal.value = true
+  isRunning.value = true
+  terminalLines.value = []
+  inputQueue.value = []
+  
+  terminalLines.value.push({ type: 'output', content: `> 正在编译 ${language.value} 代码...` })
+  scrollToBottom()
+
+  const code = editor.getValue()
+  
+  isWaitingInput.value = true
+  terminalLines.value.push({ type: 'output', content: '> 请输入数据（按 Enter 确认，输入 "exit" 退出）:' })
+  scrollToBottom()
+  
+  setTimeout(() => {
+    if (terminalInputRef.value) {
+      terminalInputRef.value.focus()
+    }
+  }, 100)
+}
+
+const handleTerminalInput = async () => {
+  if (!isWaitingInput.value) return
+
+  const input = terminalInput.value
+  if (input === 'exit') {
+    stopCode()
+    return
+  }
+
+  terminalLines.value.push({ type: 'input', content: input })
+  inputQueue.value.push(input)
+  terminalInput.value = ''
+  
+  isWaitingInput.value = false
+  
+  try {
+    const code = editor.getValue()
+    const allInput = inputQueue.value.join('\n') + '\n'
+    
+    terminalLines.value.push({ type: 'output', content: '> 正在执行...' })
+    scrollToBottom()
+
+    const res = await codeApi.run({
+      code: code,
+      language: language.value,
+      timeout: 10,
+      input: allInput
+    })
+
+    if (res.data) {
+      const response = res.data
+      if (response.compileError) {
+        terminalLines.value.push({ type: 'error', content: `编译错误: ${response.compileError}` })
+      } else if (response.runtimeError) {
+        terminalLines.value.push({ type: 'error', content: `运行时错误: ${response.runtimeError}` })
+      } else if (response.testResults && response.testResults.length > 0) {
+        const results = response.testResults[0]
+        const output = results.actualOutput || ''
+        if (output.trim()) {
+          terminalLines.value.push({ type: 'output', content: output })
+        }
+      }
+      
+      terminalLines.value.push({ type: 'output', content: '> 程序执行完毕。' })
+    }
+  } catch (error) {
+    console.error('Failed to run code:', error)
+    terminalLines.value.push({ type: 'error', content: '运行失败: ' + (error.response?.data?.message || error.message) })
+  }
+  
+  isRunning.value = false
+  scrollToBottom()
+}
+
+const handleStopCode = () => {
+  stopCode()
+}
+
+const stopCode = () => {
+  isRunning.value = false
+  isWaitingInput.value = false
+  terminalLines.value.push({ type: 'output', content: '程序已停止。' })
+  scrollToBottom()
+}
+
+const scrollToBottom = () => {
+  setTimeout(() => {
+    if (terminalRef.value) {
+      terminalRef.value.scrollTop = terminalRef.value.scrollHeight
+    }
+  }, 100)
 }
 
 const handleSubmitQuestion = async () => {
@@ -512,5 +642,84 @@ onBeforeUnmount(() => {
   overflow-y: auto;
   font-family: monospace;
   font-size: 13px;
+}
+
+.terminal-container {
+  background: #1e1e1e;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.terminal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 16px;
+  background: #333;
+  color: #fff;
+  font-weight: 500;
+}
+
+.terminal-status {
+  font-size: 12px;
+  color: #999;
+  padding: 2px 8px;
+  background: #666;
+  border-radius: 10px;
+}
+
+.terminal-status.running {
+  background: #67c23a;
+  color: #fff;
+}
+
+.terminal-body {
+  padding: 12px;
+  min-height: 150px;
+  max-height: 300px;
+  overflow-y: auto;
+  font-family: 'Consolas', 'Monaco', monospace;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.terminal-body .output {
+  color: #d4d4d4;
+  margin: 2px 0;
+}
+
+.terminal-body .input {
+  color: #4ec9b0;
+  margin: 2px 0;
+}
+
+.terminal-body .error {
+  color: #f14c4c;
+  margin: 2px 0;
+}
+
+.input-prompt {
+  display: flex;
+  align-items: center;
+  color: #4ec9b0;
+  margin-top: 8px;
+}
+
+.input-prompt span {
+  margin-right: 4px;
+}
+
+.terminal-input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: #4ec9b0;
+  font-family: 'Consolas', 'Monaco', monospace;
+  font-size: 14px;
+}
+
+.terminal-input::placeholder {
+  color: #666;
 }
 </style>
