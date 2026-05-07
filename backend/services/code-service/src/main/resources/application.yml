@@ -34,3 +34,8 @@ mybatis-plus:
   type-aliases-package: com.structexam.common.entity
   configuration:
     map-underscore-to-camel-case: true
+
+sandbox:
+  timeout: 10
+  maxMemory: 256
+  tempDir: ./sandbox-temp
