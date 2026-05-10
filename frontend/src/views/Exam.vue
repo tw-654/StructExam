@@ -98,6 +98,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { examApi, questionApi, codeApi } from '@/api/modules'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import * as monaco from 'monaco-editor'
+import sandboxWs from '@/utils/sandboxWs'
 
 const route = useRoute()
 const router = useRouter()
@@ -120,7 +121,6 @@ const terminalLines = ref([])
 const terminalInput = ref('')
 const terminalInputRef = ref(null)
 const terminalRef = ref(null)
-const inputQueue = ref([])
 let timer = null
 
 const currentQuestion = computed(() => {
@@ -227,89 +227,98 @@ const handleRunCode = async () => {
   if (!editor) return
 
   showTerminal.value = true
-  isRunning.value = true
   terminalLines.value = []
-  inputQueue.value = []
   
-  terminalLines.value.push({ type: 'output', content: `> 正在编译 ${language.value} 代码...` })
+  terminalLines.value.push({ type: 'output', content: '> 正在连接沙箱...' })
   scrollToBottom()
 
-  const code = editor.getValue()
-  
-  isWaitingInput.value = true
-  terminalLines.value.push({ type: 'output', content: '> 请输入数据（按 Enter 确认，输入 "exit" 退出）:' })
-  scrollToBottom()
-  
-  setTimeout(() => {
-    if (terminalInputRef.value) {
-      terminalInputRef.value.focus()
-    }
-  }, 100)
+  try {
+    await sandboxWs.connect()
+    
+    sandboxWs.onOutput((data, isError) => {
+      terminalLines.value.push({ 
+        type: isError ? 'error' : 'output', 
+        content: data 
+      })
+      scrollToBottom()
+    })
+
+    sandboxWs.onError((error) => {
+      terminalLines.value.push({ type: 'error', content: error })
+      scrollToBottom()
+    })
+
+    sandboxWs.onStatus((status) => {
+      if (status === 'WAITING_INPUT') {
+        isWaitingInput.value = true
+        isRunning.value = true
+        terminalLines.value.push({ type: 'output', content: '> 程序等待输入:' })
+        scrollToBottom()
+        setTimeout(() => {
+          if (terminalInputRef.value) {
+            terminalInputRef.value.focus()
+          }
+        }, 100)
+      } else if (status === 'RUNNING') {
+        isRunning.value = true
+        isWaitingInput.value = false
+      } else if (status === 'TERMINATED' || status === 'TIMEOUT') {
+        isRunning.value = false
+        isWaitingInput.value = false
+        terminalLines.value.push({ 
+          type: 'output', 
+          content: status === 'TIMEOUT' ? '> 程序执行超时，已被终止。' : '> 程序已终止。' 
+        })
+        scrollToBottom()
+        sandboxWs.disconnect()
+      } else if (status === 'COMPILE_ERROR') {
+        isRunning.value = false
+        isWaitingInput.value = false
+      } else if (status === 'ERROR') {
+        isRunning.value = false
+        isWaitingInput.value = false
+      }
+    })
+
+    const code = editor.getValue()
+    terminalLines.value.push({ type: 'output', content: `> 正在启动 ${language.value} 程序...` })
+    scrollToBottom()
+    
+    sandboxWs.start(code, language.value, 60)
+    isRunning.value = true
+    
+  } catch (error) {
+    console.error('Failed to connect to sandbox:', error)
+    terminalLines.value.push({ type: 'error', content: '连接沙箱失败: ' + error.message })
+    isRunning.value = false
+    scrollToBottom()
+  }
 }
 
 const handleTerminalInput = async () => {
   if (!isWaitingInput.value) return
 
   const input = terminalInput.value
-  if (input === 'exit') {
-    stopCode()
-    return
-  }
-
   terminalLines.value.push({ type: 'input', content: input })
-  inputQueue.value.push(input)
   terminalInput.value = ''
-  
-  isWaitingInput.value = false
-  
-  try {
-    const code = editor.getValue()
-    const allInput = inputQueue.value.join('\n') + '\n'
-    
-    terminalLines.value.push({ type: 'output', content: '> 正在执行...' })
-    scrollToBottom()
-
-    const res = await codeApi.run({
-      code: code,
-      language: language.value,
-      timeout: 10,
-      input: allInput
-    })
-
-    if (res.data) {
-      const response = res.data
-      if (response.compileError) {
-        terminalLines.value.push({ type: 'error', content: `编译错误: ${response.compileError}` })
-      } else if (response.runtimeError) {
-        terminalLines.value.push({ type: 'error', content: `运行时错误: ${response.runtimeError}` })
-      } else if (response.testResults && response.testResults.length > 0) {
-        const results = response.testResults[0]
-        const output = results.actualOutput || ''
-        if (output.trim()) {
-          terminalLines.value.push({ type: 'output', content: output })
-        }
-      }
-      
-      terminalLines.value.push({ type: 'output', content: '> 程序执行完毕。' })
-    }
-  } catch (error) {
-    console.error('Failed to run code:', error)
-    terminalLines.value.push({ type: 'error', content: '运行失败: ' + (error.response?.data?.message || error.message) })
-  }
-  
-  isRunning.value = false
   scrollToBottom()
+
+  sandboxWs.sendInput(input)
+  isWaitingInput.value = false
 }
 
 const handleStopCode = () => {
-  stopCode()
+  sandboxWs.terminate()
+  isRunning.value = false
+  isWaitingInput.value = false
+  terminalLines.value.push({ type: 'output', content: '> 程序已手动终止。' })
+  scrollToBottom()
 }
 
 const stopCode = () => {
+  sandboxWs.terminate()
   isRunning.value = false
   isWaitingInput.value = false
-  terminalLines.value.push({ type: 'output', content: '程序已停止。' })
-  scrollToBottom()
 }
 
 const scrollToBottom = () => {
@@ -453,6 +462,7 @@ onBeforeUnmount(() => {
   if (editor) {
     editor.dispose()
   }
+  sandboxWs.disconnect()
 })
 </script>
 
