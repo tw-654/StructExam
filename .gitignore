@@ -49,3 +49,6 @@ logs/
 *.zip
 *.tar.gz
 *.rar
+
+backend/services/code-service/sandbox-temp/
+test/

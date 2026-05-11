@@ -1,5 +1,7 @@
 package com.structexam.code.sandbox;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 import jakarta.annotation.PostConstruct;
 import com.structexam.code.websocket.SandboxWebSocketHandler;
@@ -15,6 +17,8 @@ import java.util.concurrent.*;
 
 @Component
 public class InteractiveProcessManager {
+
+    private static final Logger logger = LoggerFactory.getLogger(InteractiveProcessManager.class);
 
     private final Map<String, InteractiveProcess> processes = new ConcurrentHashMap<>();
     private final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(4);
@@ -36,7 +40,12 @@ public class InteractiveProcessManager {
             process.code = code;
 
             if ("java".equals(language)) {
-                process.compileJava(code);
+                String error = process.compileJava(code);
+                if (error != null) {
+                    process.notifyError("编译错误: " + error);
+                    process.setStatus(ProcessStatus.COMPILE_ERROR);
+                    return process;
+                }
             } else if ("cpp".equals(language) || "c++".equals(language)) {
                 String error = process.compileCpp(code);
                 if (error != null) {
@@ -72,6 +81,7 @@ public class InteractiveProcessManager {
 
             return process;
         } catch (Exception e) {
+            logger.error("Failed to start process for language: {}", language, e);
             InteractiveProcess process = new InteractiveProcess(sessionId, null, timeout, scheduler);
             process.notifyError("启动失败: " + e.getMessage());
             process.setStatus(ProcessStatus.ERROR);
@@ -156,7 +166,7 @@ public class InteractiveProcessManager {
             this.errorListener = listener;
         }
 
-        public void compileJava(String code) throws Exception {
+        public String compileJava(String code) throws Exception {
             String className = extractClassName(code);
             if (className == null || className.isEmpty()) {
                 className = "Main";
@@ -166,7 +176,15 @@ public class InteractiveProcessManager {
             Path sourceFile = workingDir.resolve(className + ".java");
             Files.writeString(sourceFile, code, StandardCharsets.UTF_8);
 
-            ProcessBuilder pb = new ProcessBuilder("javac", sourceFile.toString());
+            String javacPath = findJavacPath();
+            if (javacPath == null) {
+                String error = "Java compiler (javac) not found. Please install JDK and add javac to PATH.";
+                logger.error(error);
+                return error;
+            }
+            logger.debug("Found javac at: {}", javacPath);
+
+            ProcessBuilder pb = new ProcessBuilder(javacPath, sourceFile.toString());
             pb.directory(workingDir.toFile());
             pb.redirectErrorStream(true);
 
@@ -183,17 +201,28 @@ public class InteractiveProcessManager {
 
             int exitCode = compileProcess.waitFor();
             if (exitCode != 0) {
-                throw new Exception(error.toString());
+                String compileError = error.toString();
+                logger.warn("Java compilation failed: {}", compileError);
+                return compileError;
             }
 
             this.process = createJavaProcess(className);
+            return null;
         }
 
         public String compileCpp(String code) throws Exception {
             Path sourceFile = workingDir.resolve("main.cpp");
             Files.writeString(sourceFile, code, StandardCharsets.UTF_8);
 
-            ProcessBuilder pb = new ProcessBuilder("g++", "-o", "main.exe", "main.cpp");
+            String gppPath = findGppPath();
+            if (gppPath == null) {
+                String error = "C++ compiler (g++) not found. Please install MinGW or add g++ to PATH.";
+                logger.error(error);
+                return error;
+            }
+            logger.debug("Found g++ at: {}", gppPath);
+
+            ProcessBuilder pb = new ProcessBuilder(gppPath, "-o", "main.exe", "main.cpp");
             pb.directory(workingDir.toFile());
             pb.redirectErrorStream(true);
 
@@ -210,9 +239,80 @@ public class InteractiveProcessManager {
 
             int exitCode = compileProcess.waitFor();
             if (exitCode != 0) {
-                return output.toString();
+                String compileError = output.toString();
+                logger.warn("C++ compilation failed: {}", compileError);
+                return compileError;
             }
 
+            return null;
+        }
+
+        private String findJavacPath() {
+            String javaHome = System.getenv("JAVA_HOME");
+            if (javaHome != null) {
+                String javacPath = Paths.get(javaHome, "bin", "javac.exe").toString();
+                if (new File(javacPath).exists()) {
+                    return javacPath;
+                }
+            }
+
+            String[] possiblePaths = {
+                "javac",
+                "C:\\Program Files\\Java\\jdk*\\bin\\javac.exe",
+                "C:\\Program Files (x86)\\Java\\jdk*\\bin\\javac.exe"
+            };
+
+            for (String path : possiblePaths) {
+                if (path.contains("*")) {
+                    String parentDir = path.substring(0, path.indexOf("*"));
+                    File parent = new File(parentDir);
+                    if (parent.exists() && parent.isDirectory()) {
+                        File[] jdkDirs = parent.listFiles((dir, name) -> name.startsWith("jdk"));
+                        if (jdkDirs != null && jdkDirs.length > 0) {
+                            String fullPath = Paths.get(parentDir.replace("*", ""), jdkDirs[0].getName(), "bin", "javac.exe").toString();
+                            if (new File(fullPath).exists()) {
+                                return fullPath;
+                            }
+                        }
+                    }
+                } else {
+                    try {
+                        ProcessBuilder pb = new ProcessBuilder(path, "-version");
+                        Process process = pb.start();
+                        int exitCode = process.waitFor();
+                        if (exitCode == 0) {
+                            return path;
+                        }
+                    } catch (Exception e) {
+                        continue;
+                    }
+                }
+            }
+            return null;
+        }
+
+        private String findGppPath() {
+            String[] possiblePaths = {
+                "g++",
+                "C:\\MinGW\\bin\\g++.exe",
+                "C:\\MinGW64\\bin\\g++.exe",
+                "C:\\Program Files\\MinGW\\bin\\g++.exe",
+                "C:\\Program Files (x86)\\MinGW\\bin\\g++.exe",
+                "C:\\ProgramData\\chocolatey\\lib\\mingw\\tools\\install\\mingw64\\bin\\g++.exe"
+            };
+
+            for (String path : possiblePaths) {
+                try {
+                    ProcessBuilder pb = new ProcessBuilder(path, "--version");
+                    Process process = pb.start();
+                    int exitCode = process.waitFor();
+                    if (exitCode == 0) {
+                        return path;
+                    }
+                } catch (Exception e) {
+                    continue;
+                }
+            }
             return null;
         }
 

@@ -3,6 +3,8 @@ package com.structexam.code.service;
 import com.structexam.common.dto.CodeExecuteRequest;
 import com.structexam.common.dto.CodeExecuteResponse;
 import com.structexam.common.dto.TestCase;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
@@ -17,6 +19,8 @@ import java.util.concurrent.*;
 
 @Service
 public class CodeSandboxService {
+
+    private static final Logger logger = LoggerFactory.getLogger(CodeSandboxService.class);
 
     @Value("${sandbox.timeout:10}")
     private long defaultTimeout;
@@ -38,8 +42,12 @@ public class CodeSandboxService {
         long timeout = request.getTimeout() != null ? request.getTimeout() : defaultTimeout;
         String userInput = request.getInput();
 
+        logger.info("Executing {} code, timeout: {}s, has test cases: {}", language, timeout, 
+                    testCases != null && !testCases.isEmpty());
+
         try {
             Path sandboxPath = createSandboxDirectory();
+            logger.debug("Created sandbox directory: {}", sandboxPath);
 
             if ("java".equals(language)) {
                 executeJavaCode(response, code, testCases, timeout, sandboxPath, userInput);
@@ -50,14 +58,17 @@ public class CodeSandboxService {
             } else {
                 response.setRuntimeError("Unsupported language: " + language);
                 response.setMessage("Unsupported language");
+                logger.warn("Unsupported language: {}", language);
             }
 
             cleanupSandbox(sandboxPath);
         } catch (Exception e) {
             response.setRuntimeError(e.getMessage());
             response.setMessage("Execution failed: " + e.getMessage());
+            logger.error("Execution failed", e);
         }
 
+        logger.info("Execution completed, success: {}, message: {}", response.isSuccess(), response.getMessage());
         return response;
     }
 
@@ -75,6 +86,7 @@ public class CodeSandboxService {
             if (compileError != null) {
                 response.setCompileError(compileError);
                 response.setMessage("Compilation failed");
+                logger.warn("Java compilation failed: {}", compileError);
                 return;
             }
 
@@ -106,6 +118,7 @@ public class CodeSandboxService {
         } catch (Exception e) {
             response.setRuntimeError(e.getMessage());
             response.setMessage("Execution failed: " + e.getMessage());
+            logger.error("Java execution failed", e);
         }
     }
 
@@ -116,8 +129,10 @@ public class CodeSandboxService {
             if (compileError != null) {
                 response.setCompileError(compileError);
                 response.setMessage("Compilation failed");
+                logger.warn("C++ compilation failed: {}", compileError);
                 return;
             }
+            logger.debug("C++ compilation successful");
 
             if (testCases != null && !testCases.isEmpty()) {
                 List<CodeExecuteResponse.TestResult> results = new ArrayList<>();
@@ -147,6 +162,7 @@ public class CodeSandboxService {
         } catch (Exception e) {
             response.setRuntimeError(e.getMessage());
             response.setMessage("Execution failed: " + e.getMessage());
+            logger.error("C++ execution failed", e);
         }
     }
 
@@ -185,6 +201,7 @@ public class CodeSandboxService {
         } catch (Exception e) {
             response.setRuntimeError(e.getMessage());
             response.setMessage("Execution failed: " + e.getMessage());
+            logger.error("Python execution failed", e);
         }
     }
 
@@ -220,7 +237,11 @@ public class CodeSandboxService {
     private String compileJavaCode(String code, String outputDir, String className) {
         JavaCompiler compiler = ToolProvider.getSystemJavaCompiler();
         if (compiler == null) {
-            return "No Java compiler available";
+            String javaHome = System.getenv("JAVA_HOME");
+            String javaVersion = System.getProperty("java.version");
+            String error = "No Java compiler available. JAVA_HOME: " + javaHome + ", Java version: " + javaVersion;
+            logger.error(error);
+            return error;
         }
 
         DiagnosticCollector<JavaFileObject> diagnostics = new DiagnosticCollector<>();
@@ -255,7 +276,9 @@ public class CodeSandboxService {
                 return error.toString();
             }
         } catch (IOException e) {
-            return "Error writing source file: " + e.getMessage();
+            String error = "Error writing source file: " + e.getMessage();
+            logger.error(error, e);
+            return error;
         } finally {
             try {
                 fileManager.close();
@@ -269,8 +292,16 @@ public class CodeSandboxService {
         Path sourceFile = Paths.get(outputDir, "main.cpp");
         Files.writeString(sourceFile, code, StandardCharsets.UTF_8);
 
+        String gppPath = findGppPath();
+        if (gppPath == null) {
+            String error = "C++ compiler (g++) not found. Please install MinGW or add g++ to PATH.";
+            logger.error(error);
+            return error;
+        }
+        logger.debug("Found g++ at: {}", gppPath);
+
         ProcessBuilder pb = new ProcessBuilder();
-        pb.command("g++", "-o", "main.exe", "main.cpp");
+        pb.command(gppPath, "-o", "main.exe", "main.cpp");
         pb.directory(new File(outputDir));
         pb.redirectErrorStream(true);
 
@@ -297,6 +328,31 @@ public class CodeSandboxService {
         return null;
     }
 
+    private String findGppPath() {
+        String[] possiblePaths = {
+            "g++",
+            "C:\\MinGW\\bin\\g++.exe",
+            "C:\\MinGW64\\bin\\g++.exe",
+            "C:\\Program Files\\MinGW\\bin\\g++.exe",
+            "C:\\Program Files (x86)\\MinGW\\bin\\g++.exe",
+            "C:\\ProgramData\\chocolatey\\lib\\mingw\\tools\\install\\mingw64\\bin\\g++.exe"
+        };
+
+        for (String path : possiblePaths) {
+            try {
+                ProcessBuilder pb = new ProcessBuilder(path, "--version");
+                Process process = pb.start();
+                int exitCode = process.waitFor();
+                if (exitCode == 0) {
+                    return path;
+                }
+            } catch (Exception e) {
+                continue;
+            }
+        }
+        return null;
+    }
+
     private CodeExecuteResponse.TestResult executeJavaWithTestCase(String workingDir, String className, TestCase testCase, long timeout) {
         CodeExecuteResponse.TestResult result = new CodeExecuteResponse.TestResult();
         result.setInput(testCase.getInput());
@@ -310,6 +366,7 @@ public class CodeSandboxService {
         } catch (Exception e) {
             result.setActualOutput("Error: " + e.getMessage());
             result.setPassed(false);
+            logger.warn("Java test case failed: {}", e.getMessage());
         }
 
         return result;
@@ -328,6 +385,7 @@ public class CodeSandboxService {
         } catch (Exception e) {
             result.setActualOutput("Error: " + e.getMessage());
             result.setPassed(false);
+            logger.warn("C++ test case failed: {}", e.getMessage());
         }
 
         return result;
@@ -346,24 +404,32 @@ public class CodeSandboxService {
         } catch (Exception e) {
             result.setActualOutput("Error: " + e.getMessage());
             result.setPassed(false);
+            logger.warn("Python test case failed: {}", e.getMessage());
         }
 
         return result;
     }
 
     private String executeJavaClass(String workingDir, String className, String input, long timeout) throws Exception {
+        File workingDirFile = new File(workingDir);
+        String absoluteWorkingDir = workingDirFile.getAbsolutePath();
+        
         ProcessBuilder pb = new ProcessBuilder();
-        pb.command("java", "-Xmx" + maxMemory + "m", "-cp", workingDir, className);
-        pb.directory(new File(workingDir));
+        pb.command("java", "-Xmx" + maxMemory + "m", "-cp", absoluteWorkingDir, className);
+        pb.directory(workingDirFile);
         pb.redirectErrorStream(true);
 
         return runProcess(pb, input, timeout);
     }
 
     private String executeCppProgram(String workingDir, String input, long timeout) throws Exception {
+        File workingDirFile = new File(workingDir);
+        String absoluteWorkingDir = workingDirFile.getAbsolutePath();
+        String exePath = new File(absoluteWorkingDir, "main.exe").getAbsolutePath();
+        
         ProcessBuilder pb = new ProcessBuilder();
-        pb.command("main.exe");
-        pb.directory(new File(workingDir));
+        pb.command(exePath);
+        pb.directory(workingDirFile);
         pb.redirectErrorStream(true);
 
         return runProcess(pb, input, timeout);
@@ -371,7 +437,7 @@ public class CodeSandboxService {
 
     private String executePythonScript(String workingDir, String filename, String input, long timeout) throws Exception {
         ProcessBuilder pb = new ProcessBuilder();
-        pb.command("python", filename);
+        pb.command("python", "-u", filename);
         pb.directory(new File(workingDir));
         pb.redirectErrorStream(true);
 
@@ -379,40 +445,54 @@ public class CodeSandboxService {
     }
 
     private String runProcess(ProcessBuilder pb, String input, long timeout) throws Exception {
+        logger.debug("Running process: {}, input: {}", pb.command(), input != null ? input.length() + " chars" : "none");
+        
         Process process = pb.start();
 
-        if (input != null && !input.isEmpty()) {
+        new Thread(() -> {
             try (OutputStream os = process.getOutputStream()) {
-                os.write(input.getBytes(StandardCharsets.UTF_8));
-                os.flush();
+                if (input != null && !input.isEmpty()) {
+                    os.write(input.getBytes(StandardCharsets.UTF_8));
+                    os.flush();
+                }
+            } catch (Exception e) {
+                logger.debug("Error writing to process input: {}", e.getMessage());
             }
-        }
+        }).start();
 
+        StringBuilder outputBuilder = new StringBuilder();
         ExecutorService executor = Executors.newSingleThreadExecutor();
         Future<String> future = executor.submit(() -> {
-            StringBuilder output = new StringBuilder();
             try (BufferedReader reader = new BufferedReader(
                     new InputStreamReader(process.getInputStream(), StandardCharsets.UTF_8))) {
-                String line;
-                while ((line = reader.readLine()) != null) {
-                    output.append(line).append("\n");
+                char[] buffer = new char[1024];
+                int len;
+                while ((len = reader.read(buffer)) != -1) {
+                    outputBuilder.append(buffer, 0, len);
                 }
             }
-            return output.toString();
+            return outputBuilder.toString();
         });
 
         try {
             String output = future.get(timeout, TimeUnit.SECONDS);
-            boolean completed = process.waitFor(1, TimeUnit.SECONDS);
-            if (!completed || process.exitValue() != 0) {
-                throw new Exception("Program exited with code " + process.exitValue() + ": " + output);
+            process.waitFor(2, TimeUnit.SECONDS);
+            
+            if (process.isAlive()) {
+                process.destroyForcibly();
+                process.waitFor();
             }
+            
+            int exitCode = process.exitValue();
+            
+            logger.debug("Process completed with exit code: {}, output: {}", exitCode, output);
+            
             return output;
         } catch (TimeoutException e) {
             process.destroyForcibly();
             throw new Exception("Execution timed out after " + timeout + " seconds");
         } finally {
-            executor.shutdown();
+            executor.shutdownNow();
             if (process.isAlive()) {
                 process.destroyForcibly();
             }
