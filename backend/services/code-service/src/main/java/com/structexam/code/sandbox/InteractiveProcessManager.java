@@ -39,22 +39,22 @@ public class InteractiveProcessManager {
             InteractiveProcess process = new InteractiveProcess(sessionId, sandboxPath, timeout, scheduler);
             process.code = code;
 
+            // 先编译，看是否有错误
+            String compileError = null;
             if ("java".equals(language)) {
-                String error = process.compileJava(code);
-                if (error != null) {
-                    process.notifyError("编译错误: " + error);
-                    process.setStatus(ProcessStatus.COMPILE_ERROR);
-                    return process;
-                }
+                compileError = process.compileJava(code);
             } else if ("cpp".equals(language) || "c++".equals(language)) {
-                String error = process.compileCpp(code);
-                if (error != null) {
-                    process.notifyError("编译错误: " + error);
-                    process.setStatus(ProcessStatus.COMPILE_ERROR);
-                    return process;
-                }
+                compileError = process.compileCpp(code);
             }
 
+            // 如果编译有错误，清理资源后直接返回
+            if (compileError != null) {
+                process.cleanup();
+                process.pendingCompileError = compileError;
+                return process;
+            }
+
+            // 编译成功，启动执行
             process.startExecution(language);
             processes.put(sessionId, process);
 
@@ -83,8 +83,7 @@ public class InteractiveProcessManager {
         } catch (Exception e) {
             logger.error("Failed to start process for language: {}", language, e);
             InteractiveProcess process = new InteractiveProcess(sessionId, null, timeout, scheduler);
-            process.notifyError("启动失败: " + e.getMessage());
-            process.setStatus(ProcessStatus.ERROR);
+            process.pendingCompileError = "启动失败: " + e.getMessage();
             return process;
         }
     }
@@ -146,6 +145,7 @@ public class InteractiveProcessManager {
 
         private volatile boolean running = true;
         private volatile boolean hasOutput = false;
+        private volatile String pendingCompileError;
 
         public InteractiveProcess(String sessionId, Path workingDir, long timeout, ScheduledExecutorService scheduler) {
             this.sessionId = sessionId;
@@ -160,10 +160,19 @@ public class InteractiveProcessManager {
 
         public void setStatusListener(ProcessStatusListener listener) {
             this.statusListener = listener;
+            // 如果有待处理的编译错误，设置状态后立即发送
+            if (pendingCompileError != null) {
+                notifyStatus(ProcessStatus.COMPILE_ERROR);
+            }
         }
 
         public void setErrorListener(ProcessErrorListener listener) {
             this.errorListener = listener;
+            // 如果有待处理的编译错误，立即发送
+            if (pendingCompileError != null) {
+                notifyError("编译错误: " + pendingCompileError);
+                pendingCompileError = null; // 发送后清除
+            }
         }
 
         public String compileJava(String code) throws Exception {
@@ -410,6 +419,7 @@ public class InteractiveProcessManager {
         }
 
         private void startOutputReader(InputStream inputStream, boolean isError) {
+            logger.info("[{}] Starting {} output reader", sessionId, isError ? "error" : "stdout");
             new Thread(() -> {
                 try {
                     byte[] buffer = new byte[1024];
@@ -417,18 +427,21 @@ public class InteractiveProcessManager {
                     long lastActivityTime = System.currentTimeMillis();
                     
                     while (running && !Thread.currentThread().isInterrupted()) {
-                        if (inputStream.available() > 0) {
+                        int available = inputStream.available();
+                        if (available > 0) {
                             len = inputStream.read(buffer);
                             if (len > 0) {
                                 String output = new String(buffer, 0, len);
                                 markHasOutput();
                                 lastActivityTime = System.currentTimeMillis();
+                                logger.info("[{}] Read {} bytes from {}: {}", sessionId, len, isError ? "error" : "stdout", output);
                                 if (outputListener != null) {
                                     outputListener.onOutput(sessionId, output, isError);
                                 }
                             }
                         } else {
                             if (!process.isAlive()) {
+                                logger.info("[{}] Process {} is not alive, checking remaining output", sessionId, isError ? "error" : "stdout");
                                 long endTime = System.currentTimeMillis();
                                 while (endTime - lastActivityTime < 500) {
                                     if (inputStream.available() > 0) {
@@ -436,6 +449,7 @@ public class InteractiveProcessManager {
                                         if (len > 0) {
                                             String output = new String(buffer, 0, len);
                                             markHasOutput();
+                                            logger.info("[{}] Read {} remaining {} output: {}", sessionId, len, isError ? "error" : "stdout", output);
                                             if (outputListener != null) {
                                                 outputListener.onOutput(sessionId, output, isError);
                                             }
@@ -445,6 +459,7 @@ public class InteractiveProcessManager {
                                     Thread.sleep(50);
                                     endTime = System.currentTimeMillis();
                                 }
+                                logger.info("[{}] Finished reading {} output", sessionId, isError ? "error" : "stdout");
                                 break;
                             }
                             try {
@@ -455,6 +470,7 @@ public class InteractiveProcessManager {
                         }
                     }
                 } catch (Exception e) {
+                    logger.error("[{}] Error reading {} output: {}", sessionId, isError ? "error" : "stdout", e.getMessage(), e);
                     if (running && errorListener != null) {
                         errorListener.onError(sessionId, e.getMessage());
                     }
