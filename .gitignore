@@ -52,3 +52,4 @@ logs/
 
 backend/services/code-service/sandbox-temp/
 test/
+backend/sandbox-temp/

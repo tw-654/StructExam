@@ -66,8 +66,13 @@ public class InteractiveProcessManager {
                     } else {
                         process.setStatus(ProcessStatus.ERROR);
                     }
+                    // 进程结束后清理临时目录
+                    process.cleanup();
+                    processes.remove(sessionId);
                 } catch (InterruptedException e) {
                     process.setStatus(ProcessStatus.TERMINATED);
+                    process.cleanup();
+                    processes.remove(sessionId);
                 }
             }).start();
 
@@ -555,12 +560,30 @@ public class InteractiveProcessManager {
             }
 
             if (workingDir != null && Files.exists(workingDir)) {
-                try {
-                    Files.walk(workingDir)
-                            .sorted(java.util.Comparator.reverseOrder())
-                            .map(Path::toFile)
-                            .forEach(File::delete);
-                } catch (IOException ignored) {}
+                // 尝试多次清理，处理 Windows 文件锁定问题
+                int attempts = 0;
+                while (attempts < 3) {
+                    try {
+                        Files.walk(workingDir)
+                                .sorted(java.util.Comparator.reverseOrder())
+                                .forEach(path -> {
+                                    try {
+                                        Files.delete(path);
+                                    } catch (Exception e) {
+                                        // 忽略单个文件删除失败
+                                    }
+                                });
+                        break;
+                    } catch (IOException e) {
+                        attempts++;
+                        try {
+                            Thread.sleep(100);
+                        } catch (InterruptedException ie) {
+                            Thread.currentThread().interrupt();
+                            break;
+                        }
+                    }
+                }
             }
         }
 
