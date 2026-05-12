@@ -213,19 +213,21 @@ public class InteractiveProcessManager {
         public String compileCpp(String code) throws Exception {
             Path sourceFile = workingDir.resolve("main.cpp");
             Files.writeString(sourceFile, code, StandardCharsets.UTF_8);
+            logger.info("[{}] Wrote C++ source to: {}", sessionId, sourceFile);
 
             String gppPath = findGppPath();
             if (gppPath == null) {
                 String error = "C++ compiler (g++) not found. Please install MinGW or add g++ to PATH.";
-                logger.error(error);
+                logger.error("[{}] {}", sessionId, error);
                 return error;
             }
-            logger.debug("Found g++ at: {}", gppPath);
+            logger.info("[{}] Found g++ at: {}", sessionId, gppPath);
 
-            ProcessBuilder pb = new ProcessBuilder(gppPath, "-o", "main.exe", "main.cpp");
+            ProcessBuilder pb = new ProcessBuilder(gppPath, "-o", "main.exe", "main.cpp", "-std=c++11");
             pb.directory(workingDir.toFile());
             pb.redirectErrorStream(true);
 
+            logger.info("[{}] Compiling C++: {} in directory: {}", sessionId, pb.command(), workingDir);
             Process compileProcess = pb.start();
             StringBuilder output = new StringBuilder();
 
@@ -238,11 +240,21 @@ public class InteractiveProcessManager {
             }
 
             int exitCode = compileProcess.waitFor();
+            logger.info("[{}] C++ compilation exit code: {}", sessionId, exitCode);
+            
             if (exitCode != 0) {
                 String compileError = output.toString();
-                logger.warn("C++ compilation failed: {}", compileError);
+                logger.error("[{}] C++ compilation failed: {}", sessionId, compileError);
                 return compileError;
             }
+
+            Path exePath = workingDir.resolve("main.exe");
+            if (!Files.exists(exePath)) {
+                String error = "Compilation succeeded but main.exe not found at: " + exePath;
+                logger.error("[{}] {}", sessionId, error);
+                return error;
+            }
+            logger.info("[{}] C++ compilation successful, executable at: {}", sessionId, exePath);
 
             return null;
         }
@@ -379,10 +391,15 @@ public class InteractiveProcessManager {
         }
 
         private Process createCppProcess() throws IOException {
-            ProcessBuilder pb = new ProcessBuilder(workingDir.resolve("main.exe").toString());
+            logger.info("[{}] Creating C++ process: main.exe in directory: {}", sessionId, workingDir);
+            
+            ProcessBuilder pb = new ProcessBuilder("cmd", "/c", "main.exe");
             pb.directory(workingDir.toFile());
             pb.environment().put("PYTHONUNBUFFERED", "1");
-            return pb.start();
+            
+            Process proc = pb.start();
+            logger.info("[{}] C++ process started with PID: {}", sessionId, proc.pid());
+            return proc;
         }
 
         private Process createPythonProcess() throws IOException {
@@ -397,25 +414,36 @@ public class InteractiveProcessManager {
                 try {
                     byte[] buffer = new byte[1024];
                     int len;
+                    long lastActivityTime = System.currentTimeMillis();
+                    
                     while (running && !Thread.currentThread().isInterrupted()) {
                         if (inputStream.available() > 0) {
                             len = inputStream.read(buffer);
                             if (len > 0) {
                                 String output = new String(buffer, 0, len);
                                 markHasOutput();
+                                lastActivityTime = System.currentTimeMillis();
                                 if (outputListener != null) {
                                     outputListener.onOutput(sessionId, output, isError);
                                 }
                             }
                         } else {
                             if (!process.isAlive()) {
-                                len = inputStream.read(buffer);
-                                if (len > 0) {
-                                    String output = new String(buffer, 0, len);
-                                    markHasOutput();
-                                    if (outputListener != null) {
-                                        outputListener.onOutput(sessionId, output, isError);
+                                long endTime = System.currentTimeMillis();
+                                while (endTime - lastActivityTime < 500) {
+                                    if (inputStream.available() > 0) {
+                                        len = inputStream.read(buffer);
+                                        if (len > 0) {
+                                            String output = new String(buffer, 0, len);
+                                            markHasOutput();
+                                            if (outputListener != null) {
+                                                outputListener.onOutput(sessionId, output, isError);
+                                            }
+                                        }
+                                        lastActivityTime = System.currentTimeMillis();
                                     }
+                                    Thread.sleep(50);
+                                    endTime = System.currentTimeMillis();
                                 }
                                 break;
                             }

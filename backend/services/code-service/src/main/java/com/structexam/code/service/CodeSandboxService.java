@@ -291,6 +291,7 @@ public class CodeSandboxService {
     private String compileCppCode(String code, String outputDir) throws IOException {
         Path sourceFile = Paths.get(outputDir, "main.cpp");
         Files.writeString(sourceFile, code, StandardCharsets.UTF_8);
+        logger.debug("Wrote C++ source file to: {}", sourceFile);
 
         String gppPath = findGppPath();
         if (gppPath == null) {
@@ -300,11 +301,14 @@ public class CodeSandboxService {
         }
         logger.debug("Found g++ at: {}", gppPath);
 
+        File outputDirFile = new File(outputDir);
         ProcessBuilder pb = new ProcessBuilder();
-        pb.command(gppPath, "-o", "main.exe", "main.cpp");
-        pb.directory(new File(outputDir));
+        pb.command(gppPath, "-o", "main.exe", "main.cpp", "-std=c++11");
+        pb.directory(outputDirFile);
         pb.redirectErrorStream(true);
 
+        logger.debug("Compiling C++ code with command: {} in directory: {}", pb.command(), outputDir);
+        
         Process process = pb.start();
         StringBuilder output = new StringBuilder();
         try (BufferedReader reader = new BufferedReader(
@@ -317,13 +321,24 @@ public class CodeSandboxService {
 
         try {
             int exitCode = process.waitFor();
+            logger.debug("C++ compilation exit code: {}", exitCode);
             if (exitCode != 0) {
-                return output.toString();
+                String errorMsg = "Compilation failed: " + output.toString();
+                logger.error(errorMsg);
+                return errorMsg;
             }
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             return "Compilation interrupted";
         }
+
+        File exeFile = new File(outputDir, "main.exe");
+        if (!exeFile.exists()) {
+            String error = "Compilation succeeded but main.exe not found!";
+            logger.error(error);
+            return error;
+        }
+        logger.debug("C++ compilation successful, executable at: {}", exeFile.getAbsolutePath());
 
         return null;
     }
@@ -445,58 +460,76 @@ public class CodeSandboxService {
     }
 
     private String runProcess(ProcessBuilder pb, String input, long timeout) throws Exception {
-        logger.debug("Running process: {}, input: {}", pb.command(), input != null ? input.length() + " chars" : "none");
+        logger.debug("Running process: {}, working dir: {}, input: {}", pb.command(), 
+                pb.directory() != null ? pb.directory().getAbsolutePath() : "null",
+                input != null ? input.length() + " chars" : "none");
         
         Process process = pb.start();
+        long pid = process.pid();
+        logger.debug("Process started with PID: {}", pid);
 
-        new Thread(() -> {
-            try (OutputStream os = process.getOutputStream()) {
-                if (input != null && !input.isEmpty()) {
+        Thread inputThread = null;
+        if (input != null && !input.isEmpty()) {
+            inputThread = new Thread(() -> {
+                try (OutputStream os = process.getOutputStream()) {
                     os.write(input.getBytes(StandardCharsets.UTF_8));
                     os.flush();
+                    logger.debug("Wrote {} bytes to process input", input.length());
+                } catch (Exception e) {
+                    logger.debug("Error writing to process input: {}", e.getMessage());
                 }
-            } catch (Exception e) {
-                logger.debug("Error writing to process input: {}", e.getMessage());
-            }
-        }).start();
+            });
+            inputThread.start();
+        }
 
         StringBuilder outputBuilder = new StringBuilder();
-        ExecutorService executor = Executors.newSingleThreadExecutor();
-        Future<String> future = executor.submit(() -> {
+        Thread readerThread = new Thread(() -> {
             try (BufferedReader reader = new BufferedReader(
                     new InputStreamReader(process.getInputStream(), StandardCharsets.UTF_8))) {
                 char[] buffer = new char[1024];
                 int len;
+                int totalBytesRead = 0;
+                
                 while ((len = reader.read(buffer)) != -1) {
                     outputBuilder.append(buffer, 0, len);
+                    totalBytesRead += len;
+                    logger.debug("Read {} bytes, total: {}", len, totalBytesRead);
                 }
+            } catch (Exception e) {
+                logger.debug("Error reading process output: {}", e.getMessage());
             }
-            return outputBuilder.toString();
         });
+        readerThread.start();
 
         try {
-            String output = future.get(timeout, TimeUnit.SECONDS);
-            process.waitFor(2, TimeUnit.SECONDS);
-            
-            if (process.isAlive()) {
+            boolean exited = process.waitFor(timeout, TimeUnit.SECONDS);
+            if (!exited) {
+                logger.warn("Process PID {} timed out after {} seconds, destroying...", pid, timeout);
                 process.destroyForcibly();
-                process.waitFor();
             }
             
-            int exitCode = process.exitValue();
+            readerThread.join(2000);
+            if (inputThread != null) {
+                inputThread.join(500);
+            }
             
-            logger.debug("Process completed with exit code: {}, output: {}", exitCode, output);
-            
-            return output;
-        } catch (TimeoutException e) {
-            process.destroyForcibly();
-            throw new Exception("Execution timed out after " + timeout + " seconds");
         } finally {
-            executor.shutdownNow();
             if (process.isAlive()) {
+                logger.debug("Forcefully destroying process PID {}", pid);
                 process.destroyForcibly();
+                try {
+                    process.waitFor(1, TimeUnit.SECONDS);
+                } catch (Exception e) {
+                    logger.debug("Error waiting for process destruction: {}", e.getMessage());
+                }
             }
         }
+
+        int exitCode = process.exitValue();
+        String output = outputBuilder.toString();
+        logger.info("Process PID {} completed - exit code: {}, output length: {}", pid, exitCode, output.length());
+        
+        return output;
     }
 
     private String trimOutput(String output) {
