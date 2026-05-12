@@ -113,12 +113,12 @@ public class InteractiveProcessManager {
     }
 
     private Path createSandboxDirectory() throws IOException {
-        Path tempPath = Paths.get("./sandbox-temp");
+        Path tempPath = Paths.get(System.getProperty("java.io.tmpdir"), "structexam-sandbox");
         if (!Files.exists(tempPath)) {
             Files.createDirectories(tempPath);
         }
         Path sandboxPath = Files.createTempDirectory(tempPath, "sandbox-");
-        return sandboxPath;
+        return sandboxPath.toAbsolutePath();
     }
 
     public enum ProcessStatus {
@@ -185,23 +185,27 @@ public class InteractiveProcessManager {
             if (className == null || className.isEmpty()) {
                 className = "Main";
                 code = wrapJavaCodeInClass(code);
+                logger.info("[{}] Auto-wrapped code in Main class", sessionId);
             }
 
             Path sourceFile = workingDir.resolve(className + ".java");
             Files.writeString(sourceFile, code, StandardCharsets.UTF_8);
+            logger.info("[{}] Wrote Java source to: {}", sessionId, sourceFile);
+            logger.info("[{}] Working directory: {}", sessionId, workingDir);
 
             String javacPath = findJavacPath();
             if (javacPath == null) {
                 String error = "Java compiler (javac) not found. Please install JDK and add javac to PATH.";
-                logger.error(error);
+                logger.error("[{}] {}", sessionId, error);
                 return error;
             }
-            logger.debug("Found javac at: {}", javacPath);
+            logger.info("[{}] Found javac at: {}", sessionId, javacPath);
 
             ProcessBuilder pb = new ProcessBuilder(javacPath, sourceFile.toString());
             pb.directory(workingDir.toFile());
             pb.redirectErrorStream(true);
 
+            logger.info("[{}] Compiling Java: {} in directory: {}", sessionId, pb.command(), workingDir);
             Process compileProcess = pb.start();
             StringBuilder error = new StringBuilder();
 
@@ -214,11 +218,21 @@ public class InteractiveProcessManager {
             }
 
             int exitCode = compileProcess.waitFor();
+            logger.info("[{}] Java compilation exit code: {}", sessionId, exitCode);
+            
             if (exitCode != 0) {
                 String compileError = error.toString();
-                logger.warn("Java compilation failed: {}", compileError);
+                logger.error("[{}] Java compilation failed: {}", sessionId, compileError);
                 return compileError;
             }
+
+            Path classFile = workingDir.resolve(className + ".class");
+            if (!Files.exists(classFile)) {
+                String errorMsg = "Compilation succeeded but " + className + ".class not found";
+                logger.error("[{}] {}", sessionId, errorMsg);
+                return errorMsg;
+            }
+            logger.info("[{}] Java compilation successful, class file at: {}", sessionId, classFile);
 
             this.process = createJavaProcess(className);
             return null;
@@ -398,10 +412,15 @@ public class InteractiveProcessManager {
         }
 
         private Process createJavaProcess(String className) throws Exception {
+            logger.info("[{}] Creating Java process: {} in directory: {}", sessionId, className, workingDir);
+            
             ProcessBuilder pb = new ProcessBuilder("java", "-Xmx256m", "-cp", workingDir.toString(), className);
             pb.directory(workingDir.toFile());
             pb.environment().put("PYTHONUNBUFFERED", "1");
-            return pb.start();
+            
+            Process proc = pb.start();
+            logger.info("[{}] Java process started with PID: {}", sessionId, proc.pid());
+            return proc;
         }
 
         private Process createCppProcess() throws IOException {
