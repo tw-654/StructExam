@@ -6,7 +6,7 @@ services:
       MYSQL_ROOT_PASSWORD: structexam123
       MYSQL_DATABASE: structexam
     ports:
-      - "3306:3306"
+      - "3307:3306"
     volumes:
       - mysql_data:/var/lib/mysql
       - ./sql/init.sql:/docker-entrypoint-initdb.d/init.sql
@@ -49,6 +49,7 @@ services:
       dockerfile: Dockerfile.gateway
     container_name: structexam-gateway
     environment:
+      SPRING_PROFILES_ACTIVE: docker
       NACOS_HOST: nacos
       MYSQL_HOST: mysql
       REDIS_HOST: redis
@@ -58,6 +59,12 @@ services:
     depends_on:
       nacos:
         condition: service_healthy
+      user-service:
+        condition: service_started
+      exam-service:
+        condition: service_started
+      code-service:
+        condition: service_started
 
   user-service:
     build:

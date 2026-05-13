@@ -44,14 +44,16 @@
 cd StructExam
 
 # 启动所有服务
-docker-compose up -d
+docker compose up -d
 
 # 查看服务状态
-docker-compose ps
+docker compose ps
 
 # 查看日志
-docker-compose logs -f
+docker compose logs -f
 ```
+
+**说明**：若宿主机 **3306** 已被本机 MySQL 占用，当前 compose 将容器 **3306** 映射到宿主 **`3307`**；从 Windows/Mac 用客户端连库时请使用 **`127.0.0.1:3307`**。各微服务在容器网络内仍通过主机名 **`mysql:3306`** 访问，不受影响。
 
 服务启动后：
 - 前端应用: http://localhost

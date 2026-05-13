@@ -1,0 +1,14 @@
+{
+  "name": "structexam-tests",
+  "private": true,
+  "version": "1.0.0",
+  "description": "StructExam 学生端 E2E 与测试资产",
+  "scripts": {
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui",
+    "test:e2e:headed": "playwright test --headed"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.49.0"
+  }
+}

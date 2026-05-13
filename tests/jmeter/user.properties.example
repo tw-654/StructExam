@@ -1,0 +1,10 @@
+# 复制为 user.properties 或执行时传入：jmeter -q -JHOST=... -JPORT=...
+# 网关（学生端 API 入口）
+HOST=localhost
+PORT=8080
+PROTOCOL=http
+
+# 线程组（可按机器与目标环境调整）
+THREADS=10
+RAMP_UP_SEC=5
+LOOP_COUNT=20

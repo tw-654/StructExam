@@ -53,3 +53,6 @@ logs/
 backend/services/code-service/sandbox-temp/
 test/
 backend/sandbox-temp/
+docker-compose.yml
+backend/gateway/src/main/resources/application-docker.yml
+frontend/nginx.conf
