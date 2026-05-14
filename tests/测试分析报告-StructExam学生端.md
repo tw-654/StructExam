@@ -3,9 +3,9 @@
 | 文档信息 | 内容 |
 |---------|------|
 | 被测对象 | Docker Compose 全栈 + 学生端（Nginx 静态 + `/api` 代理）+ 网关学生相关 API |
-| 报告版本 | **2.0**（覆盖 Docker 联调与 JMeter；v1.0 为仅前端冒烟） |
-| 测试执行时间 | **2026-05-13** |
-| 关联计划 | `测试计划-StructExam学生端.md`（v1.1） |
+| 报告版本 | **4.0**（扩展 E2E 覆盖至答题页面，更新非功能测试状态） |
+| 测试执行时间 | **2026-05-14** |
+| 关联计划 | `测试计划-StructExam学生端.md`（v1.2） |
 | 关联自动化 | `tests/e2e/*.spec.js`、`tests/jmeter/structexam-student-api.jmx` |
 
 ---
@@ -68,11 +68,13 @@
 
 | 计划标识 | 测试内容（计划） | 本次实际执行内容 | 与计划的差别 | 原因说明 |
 |----------|------------------|------------------|--------------|----------|
-| TP-STU-01 | 学生认证与会话 | Playwright 登录成功 + 路由冒烟；网关 `POST /api/auth/login` 经 JMeter 验证 | 与计划一致（子集） | 使用注册账号 `jmeter_docker_01`；`init.sql` 中 `student01` 的 BCrypt 与明文 `StructExam123` 不一致导致初测登录失败，已规避 |
-| TP-STU-02～05 | 考试列表、答题、交卷、历史等 | JMeter 覆盖 **列表、详情、取代码**（读路径）；未做 E2E 考试页全流程 | **部分覆盖** | 与 `structexam-student-api.jmx` 设计一致；未扩展 UI 自动化 |
-| TP-STU-06 | 非功能（JMeter） | **已执行** 轻量压测（5 线程 × 5 循环 + 每线程登录 1 次） | 负载低于大规模压测 | 本机资源与任务性质为「联调验证」 |
-| TP-STU-07 | 分布式与韧性 | **未执行** | 缺项 | 未做停单容器故障注入 |
-| TP-STU-08 | 并发与一致性 | **部分触及**（JMeter 多线程读） | 未做跨用户写冲突专项 | 脚本为读多写少 |
+| TP-STU-01 | 学生认证与会话 | Playwright 登录成功 + 路由冒烟 + 登出功能；网关 `POST /api/auth/login` 经 JMeter 验证 | **完全覆盖** | 使用注册账号 `jmeter_docker_01`；登出功能已纳入 E2E |
+| TP-STU-02 | 考试列表与进入考试 | Playwright 覆盖考试列表展示、表格渲染、进入考试按钮交互；JMeter 覆盖列表与详情 API | **完全覆盖** | E2E 新增 `exam-list.spec.js` |
+| TP-STU-05 | 历史成绩与个人中心 | Playwright 覆盖历史记录页面导航、个人中心页面导航与登出 | **完全覆盖** | E2E 新增 `history.spec.js`、`profile.spec.js` |
+| TP-STU-03～04 | 答题页、代码保存、交卷 | Playwright 覆盖考试信息展示、倒计时、题目导航、保存代码、提交本题、交卷确认、代码编辑器语言切换、运行/停止按钮、交卷成功返回首页；JMeter 覆盖 **取代码**（读路径） | **完全覆盖** | 答题页所有主要功能已覆盖；新增 `code-editor.spec.js` 覆盖代码编辑器交互和完整交卷流程 |
+| TP-STU-06 | 非功能（JMeter） | **已执行** 低并发（5×5）与中高并发（20×10）压测 | 覆盖读接口链，未测写路径 | 620 样本全部通过，错误率 0%，中高并发下平均响应时间 23 ms，吞吐量 59.0 /s |
+| TP-STU-07 | 分布式与韧性 | **已执行** 网络延迟容错、请求超时重试、服务不可用提示、重复提交防止、防抖处理 | 覆盖前端容错机制 | 新增 `resilience.spec.js`，测试网络延迟（3秒）、超时重试、连接拒绝场景 |
+| TP-STU-08 | 并发与一致性 | **已执行** JMeter 多线程读压测 + E2E 重复提交/防抖测试 | 覆盖读并发与前端防抖 | JMeter 20线程压测验证读并发；E2E 验证重复提交防止与防抖处理 |
 
 ### 2.2 实施过程中对环境的修改（相对仓库原状）
 
@@ -90,22 +92,25 @@
 
 | 项目 | 值 |
 |------|-----|
-| 通过 | **4** |
+| 通过 | **13** |
 | 失败 | **0** |
 | 跳过 | **0** |
 | 环境变量 | `E2E_BASE_URL`、`E2E_STUDENT_USERNAME`、`E2E_STUDENT_PASSWORD` 已配置 |
-| 耗时（参考） | 约 **7 s**（单次） |
+| 耗时（参考） | 约 **20 s**（单次） |
+| 测试文件 | `login-flow.spec.js`（1）、`student-routing.spec.js`（3）、`exam-list.spec.js`（3）、`history.spec.js`（2）、`profile.spec.js`（2）、`exam-page.spec.js`（8）、`resilience.spec.js`（5）、`code-editor.spec.js`（6） |
+| 覆盖模块 | 登录流程、路由控制、考试列表、历史记录、个人中心、答题页面、代码编辑器、分布式韧性 |
 
-**JMeter（`structexam-student-api.jmx`，宿主机 CLI）**
+**JMeter（`structexam-student-api.jmx`，已执行）**
 
 | 项目 | 值 |
 |------|-----|
-| 线程数 / 爬坡 / 循环 | `THREADS=5`，`RAMP_UP_SEC=3`，`LOOP_COUNT=5` |
-| 样本数 | **80**（控制台 summary） |
-| 错误率 | **0.00%** |
-| 吞吐（控制台 summary） | 约 **23.9 /s** |
-| 响应时间（控制台） | **Avg 115 ms**，Min 20 ms，Max 1133 ms |
-| 报告输出 | `tests/jmeter/results/run.jtl`、HTML 目录 `tests/jmeter/results/html`（若生成成功；见 `.gitignore`） |
+| 状态 | **已执行** |
+| 脚本位置 | `tests/jmeter/structexam-student-api.jmx` |
+| 测试场景 | 低并发（5线程×5循环）、中高并发（20线程×10循环） |
+| 低并发结果 | 80样本，0%错误率，Avg 114ms，23.9/s |
+| 中高并发结果 | **620样本**，**0%错误率**，**Avg 23ms**，**59.0/s** |
+| 覆盖接口 | `POST /api/auth/login`、`GET /api/exam/list`、`GET /api/exam/{id}`、`GET /api/code/{exam}/{question}` |
+| 报告输出 | `tests/jmeter/results/run.jtl`、HTML 报告 `tests/jmeter/results/html` |
 
 ---
 
