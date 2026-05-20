@@ -32,6 +32,18 @@ const routes = [
         component: () => import('@/views/History.vue')
       },
       {
+        path: '/teacher',
+        name: 'TeacherDashboard',
+        component: () => import('@/views/TeacherDashboard.vue'),
+        meta: { roles: ['TEACHER'] }
+      },
+      {
+        path: '/admin',
+        name: 'AdminDashboard',
+        component: () => import('@/views/AdminDashboard.vue'),
+        meta: { roles: ['ADMIN'] }
+      },
+      {
         path: '/profile',
         name: 'Profile',
         component: () => import('@/views/Profile.vue')
@@ -51,6 +63,8 @@ router.beforeEach((to, from, next) => {
     next()
   } else if (!token) {
     next('/login')
+  } else if (to.meta.roles && !to.meta.roles.includes(localStorage.getItem('role'))) {
+    next('/home')
   } else {
     next()
   }

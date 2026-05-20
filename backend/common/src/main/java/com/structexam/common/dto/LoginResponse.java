@@ -1,6 +1,7 @@
 package com.structexam.common.dto;
 
 public class LoginResponse {
+    private Long id;
     private String token;
     private String username;
     private String realName;
@@ -10,12 +11,21 @@ public class LoginResponse {
     public LoginResponse() {
     }
 
-    public LoginResponse(String token, String username, String realName, String role, Long expireTime) {
+    public LoginResponse(Long id, String token, String username, String realName, String role, Long expireTime) {
+        this.id = id;
         this.token = token;
         this.username = username;
         this.realName = realName;
         this.role = role;
         this.expireTime = expireTime;
+    }
+
+    public Long getId() {
+        return id;
+    }
+
+    public void setId(Long id) {
+        this.id = id;
     }
 
     public String getToken() {

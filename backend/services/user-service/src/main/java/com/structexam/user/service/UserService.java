@@ -56,6 +56,7 @@ public class UserService {
         );
 
         return new LoginResponse(
+                user.getId(),
                 token,
                 user.getUsername(),
                 user.getRealName(),

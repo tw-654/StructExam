@@ -1,0 +1,11 @@
+FROM eclipse-temurin:17-jdk-alpine
+
+RUN apk add --no-cache python3 gcc g++ musl-dev
+
+WORKDIR /app
+
+COPY backend/services/sandbox-node/target/*.jar app.jar
+
+EXPOSE 8084
+
+ENTRYPOINT ["java", "-jar", "app.jar"]

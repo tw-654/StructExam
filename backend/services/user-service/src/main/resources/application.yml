@@ -1,6 +1,11 @@
 server:
   port: 8081
   address: 0.0.0.0
+  servlet:
+    encoding:
+      charset: UTF-8
+      force: true
+      enabled: true
 
 spring:
   application:

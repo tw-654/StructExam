@@ -23,6 +23,18 @@ public class CodeSubmission extends BaseEntity {
 
     private LocalDateTime submitTime;
 
+    private Integer score;
+
+    private String judgeStatus;
+
+    private Long timeUsedMs;
+
+    private Long memoryUsedKb;
+
+    private LocalDateTime judgeTime;
+
+    private String judgeMessage;
+
     public Long getId() {
         return id;
     }
@@ -85,5 +97,53 @@ public class CodeSubmission extends BaseEntity {
 
     public void setSubmitTime(LocalDateTime submitTime) {
         this.submitTime = submitTime;
+    }
+
+    public Integer getScore() {
+        return score;
+    }
+
+    public void setScore(Integer score) {
+        this.score = score;
+    }
+
+    public String getJudgeStatus() {
+        return judgeStatus;
+    }
+
+    public void setJudgeStatus(String judgeStatus) {
+        this.judgeStatus = judgeStatus;
+    }
+
+    public Long getTimeUsedMs() {
+        return timeUsedMs;
+    }
+
+    public void setTimeUsedMs(Long timeUsedMs) {
+        this.timeUsedMs = timeUsedMs;
+    }
+
+    public Long getMemoryUsedKb() {
+        return memoryUsedKb;
+    }
+
+    public void setMemoryUsedKb(Long memoryUsedKb) {
+        this.memoryUsedKb = memoryUsedKb;
+    }
+
+    public LocalDateTime getJudgeTime() {
+        return judgeTime;
+    }
+
+    public void setJudgeTime(LocalDateTime judgeTime) {
+        this.judgeTime = judgeTime;
+    }
+
+    public String getJudgeMessage() {
+        return judgeMessage;
+    }
+
+    public void setJudgeMessage(String judgeMessage) {
+        this.judgeMessage = judgeMessage;
     }
 }

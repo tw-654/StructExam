@@ -14,6 +14,8 @@
             <template #dropdown>
               <el-dropdown-menu>
                 <el-dropdown-item command="profile">个人中心</el-dropdown-item>
+                <el-dropdown-item v-if="isTeacher" command="teacher">教师管理</el-dropdown-item>
+                <el-dropdown-item v-if="isAdmin" command="admin">管理员监控</el-dropdown-item>
                 <el-dropdown-item command="history">考试记录</el-dropdown-item>
                 <el-dropdown-item command="logout" divided>退出登录</el-dropdown-item>
               </el-dropdown-menu>
@@ -29,11 +31,14 @@
 </template>
 
 <script setup>
+import { computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 
 const router = useRouter()
 const authStore = useAuthStore()
+const isTeacher = computed(() => authStore.role === 'TEACHER')
+const isAdmin = computed(() => authStore.role === 'ADMIN')
 
 const handleCommand = async (command) => {
   if (command === 'logout') {
@@ -43,8 +48,18 @@ const handleCommand = async (command) => {
     router.push('/profile')
   } else if (command === 'history') {
     router.push('/history')
+  } else if (command === 'teacher') {
+    router.push('/teacher')
+  } else if (command === 'admin') {
+    router.push('/admin')
   }
 }
+
+onMounted(() => {
+  if (!authStore.userInfo && authStore.token) {
+    authStore.fetchUserInfo().catch(() => {})
+  }
+})
 </script>
 
 <style scoped>

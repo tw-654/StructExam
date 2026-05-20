@@ -2,6 +2,7 @@ package com.structexam.code.controller;
 
 import com.structexam.code.service.CodeSandboxService;
 import com.structexam.code.service.CodeService;
+import com.structexam.code.distributed.dto.JudgeTaskResponse;
 import com.structexam.common.dto.ApiResponse;
 import com.structexam.common.dto.CodeExecuteRequest;
 import com.structexam.common.dto.CodeExecuteResponse;
@@ -10,6 +11,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Map;
+import java.util.List;
 
 @RestController
 @RequestMapping("/code")
@@ -39,21 +41,19 @@ public class CodeController {
     }
 
     @PostMapping("/submit")
-    public ApiResponse<Void> submitCode(
+    public ApiResponse<JudgeTaskResponse> submitCode(
             @RequestHeader("X-User-Id") Long userId,
-            @RequestBody Map<String, Long> request) {
-        Long examId = request.get("examId");
-        Long questionId = request.get("questionId");
-        codeService.submitCode(userId, examId, questionId);
-        return ApiResponse.success("Code submitted successfully", null);
+            @RequestBody CodeSaveRequest request) {
+        JudgeTaskResponse response = codeService.submitCode(userId, request);
+        return ApiResponse.success("提交成功，已进入分布式判题队列", response);
     }
 
     @PostMapping("/submitAll/{examId}")
-    public ApiResponse<Void> submitAllCode(
+    public ApiResponse<List<JudgeTaskResponse>> submitAllCode(
             @RequestHeader("X-User-Id") Long userId,
             @PathVariable Long examId) {
-        codeService.submitAllCode(userId, examId);
-        return ApiResponse.success("All code submitted successfully", null);
+        List<JudgeTaskResponse> responses = codeService.submitAllCode(userId, examId);
+        return ApiResponse.success("所有未判题代码已提交到分布式判题队列", responses);
     }
 
     @PostMapping("/run")
