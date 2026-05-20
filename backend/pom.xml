@@ -17,6 +17,7 @@
         <module>services/user-service</module>
         <module>services/exam-service</module>
         <module>services/code-service</module>
+        <module>services/sandbox-node</module>
     </modules>
 
     <properties>

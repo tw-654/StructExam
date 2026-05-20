@@ -4,7 +4,7 @@
       <el-aside width="280px" class="left-panel">
         <div class="exam-info">
           <h3>{{ examDetail.title }}</h3>
-          <div class="timer">
+          <div class="timer" :class="{ danger: remainingSeconds <= 300 }">
             <span>剩余时间</span>
             <strong>{{ formattedTime }}</strong>
           </div>
@@ -31,7 +31,7 @@
         <div class="action-buttons">
           <el-button type="primary" @click="handleSaveCode">保存代码</el-button>
           <el-button type="success" @click="handleSubmitQuestion">提交本题</el-button>
-          <el-button type="danger" @click="handleSubmitExam">交卷并退出</el-button>
+          <el-button type="danger" @click="handleSubmitExam(false)">交卷并退出</el-button>
         </div>
       </el-aside>
 
@@ -39,7 +39,7 @@
         <div class="question-header">
           <div class="question-title">
             <el-tag>{{ getQuestionTypeText(currentQuestion.type) }}</el-tag>
-            <span class="score">{{ currentQuestion.score }}分</span>
+            <span class="score">{{ currentQuestion.score }} 分</span>
           </div>
           <h3>{{ currentQuestion.title }}</h3>
         </div>
@@ -52,11 +52,11 @@
           <div class="editor-header">
             <span>代码编辑器</span>
             <div class="editor-actions">
-              <el-button type="primary" size="small" @click="handleRunCode">运行</el-button>
+              <el-button type="primary" size="small" @click="handleRunCode" :loading="isRunning">运行</el-button>
               <el-button type="warning" size="small" @click="handleStopCode" :disabled="!isRunning">停止</el-button>
               <el-select v-model="language" size="small" style="width: 120px">
-                <el-option label="Java" value="java" />
                 <el-option label="C++" value="cpp" />
+                <el-option label="Java" value="java" />
                 <el-option label="Python" value="python" />
               </el-select>
             </div>
@@ -67,23 +67,14 @@
         <div class="terminal-container" v-if="showTerminal">
           <div class="terminal-header">
             <span>终端</span>
-            <span class="terminal-status" :class="{ running: isRunning }">{{ isRunning ? '运行中' : '已停止' }}</span>
+            <span class="terminal-status" :class="{ running: isRunning }">
+              {{ isRunning ? '运行中' : '已停止' }}
+            </span>
           </div>
           <div class="terminal-body" ref="terminalRef">
             <div v-for="(line, index) in terminalLines" :key="index" :class="line.type">
-              <span v-if="line.type === 'input'">></span>
+              <span v-if="line.type === 'input'">&gt;</span>
               {{ line.content }}
-            </div>
-            <div v-if="isWaitingInput" class="input-prompt">
-              <span>> </span>
-              <input 
-                ref="terminalInputRef"
-                v-model="terminalInput" 
-                @keydown.enter="handleTerminalInput" 
-                class="terminal-input"
-                :disabled="!isWaitingInput"
-                placeholder="输入数据..."
-              />
             </div>
           </div>
         </div>
@@ -93,51 +84,40 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, onMounted, onBeforeUnmount, watch } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { examApi, questionApi, codeApi } from '@/api/modules'
+import { examApi, codeApi } from '@/api/modules'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import * as monaco from 'monaco-editor'
-import sandboxWs from '@/utils/sandboxWs'
 
 const route = useRoute()
 const router = useRouter()
 
-const examId = computed(() => route.params.id)
+const examId = computed(() => Number(route.params.id) || 0)
 const examDetail = ref({})
 const questions = ref([])
 const currentQuestionIndex = ref(0)
 const pageLoading = ref(true)
-const language = ref('java')
+const language = ref('cpp')
 const editorRef = ref(null)
-let editor = null
-
 const remainingSeconds = ref(0)
-
 const showTerminal = ref(false)
 const isRunning = ref(false)
-const isWaitingInput = ref(false)
 const terminalLines = ref([])
-const terminalInput = ref('')
-const terminalInputRef = ref(null)
 const terminalRef = ref(null)
-let timer = null
-
-const currentQuestion = computed(() => {
-  return questions.value[currentQuestionIndex.value] || {}
-})
-
 const answeredQuestions = ref([])
 
-const showResult = ref(false)
-const runResult = ref('')
-const inputData = ref('')
+let editor = null
+let timer = null
+let submitted = false
+
+const currentQuestion = computed(() => questions.value[currentQuestionIndex.value] || {})
 
 const formattedTime = computed(() => {
   const hours = Math.floor(remainingSeconds.value / 3600)
   const minutes = Math.floor((remainingSeconds.value % 3600) / 60)
   const seconds = remainingSeconds.value % 60
-  return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`
+  return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`
 })
 
 const getQuestionTypeText = (type) => {
@@ -146,31 +126,29 @@ const getQuestionTypeText = (type) => {
     MULTIPLE_CHOICE: '多选题',
     PROGRAMMING: '编程题'
   }
-  return typeMap[type] || type
+  return typeMap[type] || type || ''
 }
 
 const formatContent = (content) => {
-  if (!content) return ''
-  return content.replace(/\n/g, '<br>')
+  return content ? content.replace(/\n/g, '<br>') : ''
 }
 
-const selectQuestion = (index) => {
+const selectQuestion = async (index) => {
   if (currentQuestionIndex.value !== index) {
-    saveCurrentCode()
+    await saveCurrentCode()
   }
   currentQuestionIndex.value = index
-  loadQuestionCode()
+  await loadQuestionCode()
 }
 
-const saveCurrentCode = async () => {
-  if (!editor || !currentQuestion.value.id) return
+const saveCurrentCode = async (force = false) => {
+  if (!editor || !currentQuestion.value.id || (submitted && !force)) return
 
-  const code = editor.getValue()
   try {
     await codeApi.save({
       examId: examId.value,
       questionId: currentQuestion.value.id,
-      code: code,
+      code: editor.getValue(),
       language: language.value
     })
   } catch (error) {
@@ -179,146 +157,116 @@ const saveCurrentCode = async () => {
 }
 
 const loadQuestionCode = async () => {
-  if (!currentQuestion.value.id) return
+  if (!editor || !currentQuestion.value.id) return
 
   try {
     const res = await codeApi.get(examId.value, currentQuestion.value.id)
-    const code = res.data?.code || getDefaultCode(currentQuestion.value.type)
-    editor.setValue(code)
+    editor.setValue(res.data?.code || getDefaultCode())
   } catch (error) {
-    const defaultCode = getDefaultCode(currentQuestion.value.type)
-    editor.setValue(defaultCode)
+    editor.setValue(getDefaultCode())
   }
 }
 
-const getDefaultCode = (type) => {
-  if (type === 'PROGRAMMING') {
-    if (language.value === 'java') {
-      return `import java.util.Scanner;
+const getDefaultCode = () => {
+  if (language.value === 'java') {
+    return `import java.util.Scanner;
 
 public class Main {
     public static void main(String[] args) {
         Scanner scanner = new Scanner(System.in);
-        // Your code here
+        // 在这里编写代码
     }
 }`
-    } else if (language.value === 'cpp') {
-      return `#include <iostream>
+  }
+  if (language.value === 'python') {
+    return `# 在这里编写代码
+`
+  }
+  return `#include <iostream>
 using namespace std;
 
 int main() {
-    // Your code here
+    // 在这里编写代码
     return 0;
 }`
-    } else {
-      return `# Your code here
-`
-    }
-  }
-  return ''
 }
 
 const handleSaveCode = async () => {
-  await saveCurrentCode()
-  ElMessage.success('Code saved')
+  await saveCurrentCode(true)
+  ElMessage.success('代码已保存')
+}
+
+const submitDistributedTask = async (code, questionId) => {
+  const res = await codeApi.submitDistributed({
+    examId: examId.value,
+    questionId,
+    code,
+    language: language.value
+  })
+  return res.data.taskId
+}
+
+const submitOfficialJudgeTask = async (code, questionId) => {
+  const res = await codeApi.submit({
+    examId: examId.value,
+    questionId,
+    code,
+    language: language.value
+  })
+  return res.data.taskId
+}
+
+const waitJudgeResult = async (taskId, maxAttempts = 60) => {
+  for (let i = 0; i < maxAttempts; i++) {
+    await new Promise(resolve => setTimeout(resolve, 1000))
+    try {
+      const res = await codeApi.getDistributedResult(taskId)
+      if (res.data) return res.data
+    } catch (error) {
+      // 404 means the task is still running.
+    }
+  }
+  throw new Error('判题超时，请稍后刷新查看结果')
 }
 
 const handleRunCode = async () => {
-  if (!editor) return
+  if (!editor || isRunning.value) return
 
   showTerminal.value = true
-  terminalLines.value = []
-  
-  terminalLines.value.push({ type: 'output', content: '> 正在连接沙箱...' })
+  terminalLines.value = [{ type: 'output', content: '> 正在提交到分布式沙箱运行...' }]
   scrollToBottom()
 
   try {
-    await sandboxWs.connect()
-    
-    sandboxWs.onOutput((data, isError) => {
-      terminalLines.value.push({ 
-        type: isError ? 'error' : 'output', 
-        content: data 
-      })
-      scrollToBottom()
-    })
-
-    sandboxWs.onError((error) => {
-      terminalLines.value.push({ type: 'error', content: error })
-      scrollToBottom()
-    })
-
-    sandboxWs.onStatus((status) => {
-      if (status === 'WAITING_INPUT') {
-        isWaitingInput.value = true
-        isRunning.value = true
-        terminalLines.value.push({ type: 'output', content: '> 程序等待输入:' })
-        scrollToBottom()
-        setTimeout(() => {
-          if (terminalInputRef.value) {
-            terminalInputRef.value.focus()
-          }
-        }, 100)
-      } else if (status === 'RUNNING') {
-        isRunning.value = true
-        isWaitingInput.value = false
-      } else if (status === 'TERMINATED' || status === 'TIMEOUT') {
-        isRunning.value = false
-        isWaitingInput.value = false
-        terminalLines.value.push({ 
-          type: 'output', 
-          content: status === 'TIMEOUT' ? '> 程序执行超时，已被终止。' : '> 程序已终止。' 
-        })
-        scrollToBottom()
-        sandboxWs.disconnect()
-      } else if (status === 'COMPILE_ERROR') {
-        isRunning.value = false
-        isWaitingInput.value = false
-      } else if (status === 'ERROR') {
-        isRunning.value = false
-        isWaitingInput.value = false
-      }
-    })
-
-    const code = editor.getValue()
-    terminalLines.value.push({ type: 'output', content: `> 正在启动 ${language.value} 程序...` })
-    scrollToBottom()
-    
-    sandboxWs.start(code, language.value, 60)
     isRunning.value = true
-    
+    const taskId = await submitDistributedTask(editor.getValue(), currentQuestion.value.id)
+    terminalLines.value.push({ type: 'output', content: `> 任务已入队: ${taskId}` })
+    const result = await waitJudgeResult(taskId)
+
+    terminalLines.value.push({ type: result.status === 'AC' ? 'output' : 'error', content: `> 运行完成: ${result.status}` })
+    if (result.output) {
+      terminalLines.value.push({ type: 'output', content: '--- 程序输出 ---' })
+      terminalLines.value.push({ type: 'output', content: result.output })
+    }
+    if (result.error) {
+      terminalLines.value.push({ type: 'error', content: '--- 错误信息 ---' })
+      terminalLines.value.push({ type: 'error', content: result.error })
+    }
+    if (result.timeUsedMs != null) {
+      terminalLines.value.push({ type: 'output', content: `执行时间: ${result.timeUsedMs} ms` })
+    }
   } catch (error) {
-    console.error('Failed to connect to sandbox:', error)
-    terminalLines.value.push({ type: 'error', content: '连接沙箱失败: ' + error.message })
+    console.error('Failed to run code:', error)
+    terminalLines.value.push({ type: 'error', content: '执行失败: ' + (error.message || '未知错误') })
+  } finally {
     isRunning.value = false
     scrollToBottom()
   }
 }
 
-const handleTerminalInput = async () => {
-  if (!isWaitingInput.value) return
-
-  const input = terminalInput.value
-  terminalLines.value.push({ type: 'input', content: input })
-  terminalInput.value = ''
-  scrollToBottom()
-
-  sandboxWs.sendInput(input)
-  isWaitingInput.value = false
-}
-
 const handleStopCode = () => {
-  sandboxWs.terminate()
   isRunning.value = false
-  isWaitingInput.value = false
-  terminalLines.value.push({ type: 'output', content: '> 程序已手动终止。' })
+  terminalLines.value.push({ type: 'output', content: '> 已停止等待结果' })
   scrollToBottom()
-}
-
-const stopCode = () => {
-  sandboxWs.terminate()
-  isRunning.value = false
-  isWaitingInput.value = false
 }
 
 const scrollToBottom = () => {
@@ -331,23 +279,18 @@ const scrollToBottom = () => {
 
 const handleSubmitQuestion = async () => {
   try {
-    await ElMessageBox.confirm('确定要提交当前题目吗？提交后无法修改。', '提交确认', {
+    await ElMessageBox.confirm('确定提交当前题目吗？提交后请等待判题结果。', '提交确认', {
       confirmButtonText: '确定',
       cancelButtonText: '取消',
       type: 'warning'
     })
 
     await saveCurrentCode()
-    await codeApi.submit({
-      examId: examId.value,
-      questionId: currentQuestion.value.id
-    })
-
+    const taskId = await submitOfficialJudgeTask(editor.getValue(), currentQuestion.value.id)
     if (!answeredQuestions.value.includes(currentQuestion.value.id)) {
       answeredQuestions.value.push(currentQuestion.value.id)
     }
-
-    ElMessage.success('Question submitted')
+    ElMessage.success(`题目已提交，任务号：${taskId}`)
   } catch (error) {
     if (error !== 'cancel') {
       console.error('Failed to submit question:', error)
@@ -355,23 +298,34 @@ const handleSubmitQuestion = async () => {
   }
 }
 
-const handleSubmitExam = async () => {
+const doSubmitExam = async () => {
+  if (submitted) return
+  submitted = true
+  if (timer) clearInterval(timer)
+
+  await saveCurrentCode()
+  await codeApi.submitAll(examId.value)
+  await examApi.submitExam(examId.value)
+}
+
+const handleSubmitExam = async (auto = false) => {
   try {
-    await ElMessageBox.confirm('确定要交卷吗？交卷后无法继续答题。', '交卷确认', {
-      confirmButtonText: '确定交卷',
-      cancelButtonText: '取消',
-      type: 'warning'
-    })
+    if (!auto) {
+      await ElMessageBox.confirm('确定要交卷吗？交卷后无法继续答题。', '交卷确认', {
+        confirmButtonText: '确定交卷',
+        cancelButtonText: '取消',
+        type: 'warning'
+      })
+    }
 
-    await saveCurrentCode()
-    await codeApi.submitAll(examId.value)
-    await examApi.submitExam(examId.value)
-
-    ElMessage.success('Exam submitted successfully')
+    await doSubmitExam()
+    ElMessage.success(auto ? '考试时间已到，系统已自动交卷' : '交卷成功')
     router.push('/home')
   } catch (error) {
+    submitted = false
     if (error !== 'cancel') {
       console.error('Failed to submit exam:', error)
+      ElMessage.error('交卷失败，请重试')
     }
   }
 }
@@ -380,7 +334,7 @@ const initEditor = () => {
   if (!editorRef.value) return
 
   editor = monaco.editor.create(editorRef.value, {
-    value: getDefaultCode('PROGRAMMING'),
+    value: getDefaultCode(),
     language: language.value,
     theme: 'vs-dark',
     automaticLayout: true,
@@ -392,77 +346,98 @@ const initEditor = () => {
     tabSize: 4,
     insertSpaces: true
   })
+}
 
-  editor.onDidChangeModelContent(() => {
-    showResult.value = false
-  })
+const loadRuntime = async () => {
+  const runtimeRes = await examApi.getRuntime(examId.value)
+  return runtimeRes.data || {}
+}
+
+const ensureExamRuntime = async () => {
+  try {
+    let runtime = await loadRuntime()
+    const record = runtime.record
+    if (record?.status === 'SUBMITTED' || record?.status === 'GRADED') {
+      ElMessage.warning('该考试已交卷')
+      router.push('/home')
+      return null
+    }
+    if (record?.status === 'IN_PROGRESS') {
+      return runtime
+    }
+  } catch (error) {
+    // No record yet; enter the exam below.
+  }
+
+  await examApi.enterExam(examId.value)
+  return await loadRuntime()
+}
+
+const updateRemainingTime = (runtime) => {
+  remainingSeconds.value = Math.max(0, Number(runtime?.remainingSeconds || 0))
 }
 
 const loadExamData = async () => {
   pageLoading.value = true
   try {
     const detailRes = await examApi.getDetail(examId.value)
-    examDetail.value = detailRes.data
-    questions.value = detailRes.data.questions || []
+    examDetail.value = detailRes.data || {}
+    questions.value = examDetail.value.questions || []
 
-    const recordRes = await examApi.getRecord(examId.value)
-    if (recordRes.data?.enterTime) {
-      const enterTime = new Date(recordRes.data.enterTime).getTime()
-      const duration = examDetail.value.duration * 60 * 1000
-      const endTime = enterTime + duration
-      const remaining = Math.max(0, endTime - Date.now())
-      remainingSeconds.value = Math.floor(remaining / 1000)
-    }
-
-    if (questions.value.length > 0) {
-      loadQuestionCode()
-    }
+    const runtime = await ensureExamRuntime()
+    if (!runtime) return false
+    updateRemainingTime(runtime)
+    return true
   } catch (error) {
     console.error('Failed to load exam:', error)
-    ElMessage.error('Failed to load exam')
+    ElMessage.error('加载考试失败')
     router.push('/home')
+    return false
   } finally {
     pageLoading.value = false
   }
 }
 
 const startTimer = () => {
+  if (timer) clearInterval(timer)
+  if (remainingSeconds.value <= 0) {
+    ElMessage.warning('当前考试剩余时间为 0，请回到首页确认考试状态')
+    router.push('/home')
+    return
+  }
+
   timer = setInterval(() => {
     if (remainingSeconds.value > 0) {
       remainingSeconds.value--
-    } else {
-      clearInterval(timer)
-      ElMessage.warning('Time is up, auto submitting')
-      handleSubmitExam()
+      return
     }
+    clearInterval(timer)
+    ElMessage.warning('考试时间已到，正在自动交卷')
+    handleSubmitExam(true)
   }, 1000)
 }
 
 watch(language, (newLang) => {
-  if (editor) {
-    const model = editor.getModel()
-    if (model) {
-      monaco.editor.setModelLanguage(model, newLang)
-    }
-    editor.setValue(getDefaultCode('PROGRAMMING'))
+  if (!editor) return
+  const model = editor.getModel()
+  if (model) {
+    monaco.editor.setModelLanguage(model, newLang)
   }
+  editor.setValue(getDefaultCode())
 })
 
 onMounted(async () => {
-  await loadExamData()
+  const ready = await loadExamData()
+  if (!ready) return
   await new Promise(resolve => setTimeout(resolve, 100))
   initEditor()
+  await loadQuestionCode()
   startTimer()
 })
 
 onBeforeUnmount(() => {
-  if (timer) {
-    clearInterval(timer)
-  }
-  if (editor) {
-    editor.dispose()
-  }
-  sandboxWs.disconnect()
+  if (timer) clearInterval(timer)
+  if (editor) editor.dispose()
 })
 </script>
 
@@ -503,6 +478,10 @@ onBeforeUnmount(() => {
   border-radius: 4px;
 }
 
+.timer.danger {
+  background: #fef0f0;
+}
+
 .timer span {
   font-size: 12px;
   color: #666;
@@ -512,6 +491,10 @@ onBeforeUnmount(() => {
   font-size: 24px;
   color: #67c23a;
   font-family: monospace;
+}
+
+.timer.danger strong {
+  color: #f56c6c;
 }
 
 .question-nav {
@@ -579,10 +562,16 @@ onBeforeUnmount(() => {
   gap: 16px;
 }
 
-.question-header {
+.question-header,
+.question-content,
+.editor-container {
   background: #fff;
-  padding: 16px;
   border-radius: 4px;
+}
+
+.question-header,
+.question-content {
+  padding: 16px;
 }
 
 .question-title {
@@ -603,16 +592,11 @@ onBeforeUnmount(() => {
 }
 
 .question-content {
-  background: #fff;
-  padding: 16px;
-  border-radius: 4px;
   line-height: 1.8;
 }
 
 .editor-container {
   flex: 1;
-  background: #fff;
-  border-radius: 4px;
   display: flex;
   flex-direction: column;
   min-height: 300px;
@@ -627,31 +611,15 @@ onBeforeUnmount(() => {
   font-weight: 500;
 }
 
+.editor-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
 .monaco-editor {
   flex: 1;
   min-height: 250px;
-}
-
-.result-container {
-  background: #fff;
-  border-radius: 4px;
-}
-
-.result-header {
-  padding: 12px 16px;
-  border-bottom: 1px solid #e6e6e6;
-  font-weight: 500;
-}
-
-.result-output {
-  margin: 0;
-  padding: 16px;
-  background: #f5f5f5;
-  min-height: 80px;
-  max-height: 150px;
-  overflow-y: auto;
-  font-family: monospace;
-  font-size: 13px;
 }
 
 .terminal-container {
@@ -688,7 +656,7 @@ onBeforeUnmount(() => {
   min-height: 150px;
   max-height: 300px;
   overflow-y: auto;
-  font-family: 'Consolas', 'Monaco', monospace;
+  font-family: Consolas, Monaco, monospace;
   font-size: 14px;
   line-height: 1.5;
 }
@@ -706,30 +674,5 @@ onBeforeUnmount(() => {
 .terminal-body .error {
   color: #f14c4c;
   margin: 2px 0;
-}
-
-.input-prompt {
-  display: flex;
-  align-items: center;
-  color: #4ec9b0;
-  margin-top: 8px;
-}
-
-.input-prompt span {
-  margin-right: 4px;
-}
-
-.terminal-input {
-  flex: 1;
-  background: transparent;
-  border: none;
-  outline: none;
-  color: #4ec9b0;
-  font-family: 'Consolas', 'Monaco', monospace;
-  font-size: 14px;
-}
-
-.terminal-input::placeholder {
-  color: #666;
 }
 </style>

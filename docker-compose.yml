@@ -5,8 +5,9 @@ services:
     environment:
       MYSQL_ROOT_PASSWORD: structexam123
       MYSQL_DATABASE: structexam
+      MYSQL_INIT_COMMAND: SET NAMES utf8mb4 COLLATE utf8mb4_unicode_ci
     ports:
-      - "3306:3306"
+      - "3307:3306"
     volumes:
       - mysql_data:/var/lib/mysql
       - ./sql/init.sql:/docker-entrypoint-initdb.d/init.sql
@@ -111,6 +112,51 @@ services:
     depends_on:
       mysql:
         condition: service_healthy
+      nacos:
+        condition: service_healthy
+
+  sandbox-node-1:
+    build:
+      context: .
+      dockerfile: Dockerfile.sandbox-node
+    container_name: structexam-sandbox-node-1
+    environment:
+      NACOS_HOST: nacos
+      SERVER_PORT: 8084
+      SANDBOX_MAX_CONCURRENCY: 4
+    ports:
+      - "18091:8084"
+    depends_on:
+      nacos:
+        condition: service_healthy
+
+  sandbox-node-2:
+    build:
+      context: .
+      dockerfile: Dockerfile.sandbox-node
+    container_name: structexam-sandbox-node-2
+    environment:
+      NACOS_HOST: nacos
+      SERVER_PORT: 8084
+      SANDBOX_MAX_CONCURRENCY: 4
+    ports:
+      - "18092:8084"
+    depends_on:
+      nacos:
+        condition: service_healthy
+
+  sandbox-node-3:
+    build:
+      context: .
+      dockerfile: Dockerfile.sandbox-node
+    container_name: structexam-sandbox-node-3
+    environment:
+      NACOS_HOST: nacos
+      SERVER_PORT: 8084
+      SANDBOX_MAX_CONCURRENCY: 4
+    ports:
+      - "18093:8084"
+    depends_on:
       nacos:
         condition: service_healthy
 

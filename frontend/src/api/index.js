@@ -13,6 +13,14 @@ api.interceptors.request.use(
     if (token) {
       config.headers.Authorization = `Bearer ${token}`
     }
+    const userId = localStorage.getItem('userId')
+    if (userId) {
+      config.headers['X-User-Id'] = userId
+    }
+    const role = localStorage.getItem('role')
+    if (role) {
+      config.headers['X-User-Role'] = role
+    }
     return config
   },
   error => {

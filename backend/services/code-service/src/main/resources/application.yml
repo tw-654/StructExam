@@ -1,6 +1,11 @@
 server:
   port: 8083
   address: 0.0.0.0
+  servlet:
+    encoding:
+      charset: UTF-8
+      force: true
+      enabled: true
 
 spring:
   application:
@@ -11,7 +16,9 @@ spring:
         import-check:
           enabled: false
       discovery:
-        enabled: false
+        enabled: true
+        server-addr: ${NACOS_HOST:nacos}:8848
+        register-enabled: false
   datasource:
     url: jdbc:mysql://${MYSQL_HOST:localhost}:3306/structexam?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai
     username: root
@@ -39,3 +46,7 @@ sandbox:
   timeout: 10
   maxMemory: 256
   tempDir: ./sandbox-temp
+
+distributed:
+  judge:
+    local-sandbox-node-enabled: false

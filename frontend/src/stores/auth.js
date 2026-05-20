@@ -4,7 +4,14 @@ import { authApi } from '@/api/modules'
 export const useAuthStore = defineStore('auth', {
   state: () => ({
     token: localStorage.getItem('token') || '',
-    userInfo: null
+    userInfo: localStorage.getItem('role')
+      ? {
+          id: localStorage.getItem('userId'),
+          username: localStorage.getItem('username') || '',
+          realName: localStorage.getItem('realName') || '',
+          role: localStorage.getItem('role') || ''
+        }
+      : null
   }),
   getters: {
     isLoggedIn: state => !!state.token,
@@ -17,11 +24,16 @@ export const useAuthStore = defineStore('auth', {
       const res = await authApi.login(loginForm)
       this.token = res.data.token
       this.userInfo = {
+        id: res.data.id,
         username: res.data.username,
         realName: res.data.realName,
         role: res.data.role
       }
       localStorage.setItem('token', this.token)
+      localStorage.setItem('userId', res.data.id)
+      localStorage.setItem('username', res.data.username)
+      localStorage.setItem('realName', res.data.realName)
+      localStorage.setItem('role', res.data.role)
       return res.data
     },
     async register(registerForm) {
@@ -34,12 +46,20 @@ export const useAuthStore = defineStore('auth', {
         this.token = ''
         this.userInfo = null
         localStorage.removeItem('token')
+        localStorage.removeItem('userId')
+        localStorage.removeItem('username')
+        localStorage.removeItem('realName')
+        localStorage.removeItem('role')
       }
     },
     async fetchUserInfo() {
       try {
         const res = await authApi.getUserInfo()
         this.userInfo = res.data
+        localStorage.setItem('userId', res.data.id)
+        localStorage.setItem('username', res.data.username)
+        localStorage.setItem('realName', res.data.realName)
+        localStorage.setItem('role', res.data.role)
         return res.data
       } catch (error) {
         this.logout()

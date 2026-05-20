@@ -19,9 +19,9 @@
             {{ formatDate(row.endTime) }}
           </template>
         </el-table-column>
-        <el-table-column prop="status" label="状态" width="100" align="center">
+        <el-table-column prop="displayStatus" label="状态" width="100" align="center">
           <template #default="{ row }">
-            <el-tag :type="getStatusType(row.status)">{{ getStatusText(row.status) }}</el-tag>
+            <el-tag :type="getStatusType(row.displayStatus)">{{ getStatusText(row.displayStatus) }}</el-tag>
           </template>
         </el-table-column>
         <el-table-column label="操作" width="150" align="center">
@@ -30,9 +30,9 @@
               type="primary"
               size="small"
               :disabled="!canEnter(row)"
-              @click="handleEnterExam(row)"
+              @click="handleExamAction(row)"
             >
-              进入考试
+              {{ isStaff ? '查看详情' : '进入考试' }}
             </el-button>
           </template>
         </el-table-column>
@@ -54,12 +54,17 @@
 </template>
 
 <script setup>
-import { ref, onMounted, computed } from 'vue'
+import { computed, ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
+import { useAuthStore } from '@/stores/auth'
 import { examApi } from '@/api/modules'
 import { ElMessage, ElMessageBox } from 'element-plus'
 
 const router = useRouter()
+const authStore = useAuthStore()
+const isTeacher = computed(() => authStore.role === 'TEACHER')
+const isAdmin = computed(() => authStore.role === 'ADMIN')
+const isStaff = computed(() => isTeacher.value || isAdmin.value)
 
 const loading = ref(false)
 const examList = ref([])
@@ -70,11 +75,24 @@ const total = ref(0)
 const loadExams = async () => {
   loading.value = true
   try {
-    const res = await examApi.getList(pageNum.value, pageSize.value)
-    examList.value = res.data.records || []
-    total.value = res.data.total || 0
+    const [examRes, recordRes] = await Promise.all([
+      examApi.getList(pageNum.value, pageSize.value),
+      examApi.getRecordList().catch(() => ({ data: [] }))
+    ])
+    const records = recordRes.data || []
+    const recordMap = new Map(records.map(record => [record.examId, record]))
+    examList.value = (examRes.data.records || []).map(exam => {
+      const record = recordMap.get(exam.id)
+      return {
+        ...exam,
+        userRecordStatus: record?.status,
+        displayStatus: record?.status || exam.status
+      }
+    })
+    total.value = examRes.data.total || 0
   } catch (error) {
     console.error('Failed to load exams:', error)
+    ElMessage.error('加载考试列表失败')
   } finally {
     loading.value = false
   }
@@ -82,8 +100,7 @@ const loadExams = async () => {
 
 const formatDate = (dateStr) => {
   if (!dateStr) return '-'
-  const date = new Date(dateStr)
-  return date.toLocaleString('zh-CN')
+  return new Date(dateStr).toLocaleString('zh-CN')
 }
 
 const getStatusType = (status) => {
@@ -91,7 +108,10 @@ const getStatusType = (status) => {
     DRAFT: 'info',
     PUBLISHED: 'success',
     ONGOING: 'warning',
-    FINISHED: 'danger'
+    FINISHED: 'danger',
+    IN_PROGRESS: 'warning',
+    SUBMITTED: 'success',
+    GRADED: 'success'
   }
   return typeMap[status] || 'info'
 }
@@ -101,22 +121,43 @@ const getStatusText = (status) => {
     DRAFT: '草稿',
     PUBLISHED: '已发布',
     ONGOING: '进行中',
-    FINISHED: '已结束'
+    FINISHED: '已结束',
+    IN_PROGRESS: '答题中',
+    SUBMITTED: '已交卷',
+    GRADED: '已评分'
   }
   return textMap[status] || status
 }
 
 const canEnter = (exam) => {
+  if (isStaff.value) {
+    return true
+  }
+  if (exam.userRecordStatus === 'SUBMITTED' || exam.userRecordStatus === 'GRADED') {
+    return false
+  }
   const now = new Date()
   const start = new Date(exam.startTime)
   const end = new Date(exam.endTime)
   return now >= start && now <= end && (exam.status === 'PUBLISHED' || exam.status === 'ONGOING')
 }
 
-const handleEnterExam = async (exam) => {
+const handleExamAction = async (exam) => {
+  if (isAdmin.value) {
+    router.push(`/admin?examId=${exam.id}`)
+    return
+  }
+  if (isTeacher.value) {
+    router.push(`/teacher?examId=${exam.id}`)
+    return
+  }
   try {
+    if (exam.userRecordStatus === 'SUBMITTED' || exam.userRecordStatus === 'GRADED') {
+      ElMessage.warning('该考试已交卷，不能再次进入')
+      return
+    }
     await ElMessageBox.confirm(
-      `即将进入 "${exam.title}"，考试时长 ${exam.duration} 分钟。是否继续？`,
+      `即将进入“${exam.title}”，考试时长 ${exam.duration} 分钟。是否继续？`,
       '进入考试',
       {
         confirmButtonText: '进入',
