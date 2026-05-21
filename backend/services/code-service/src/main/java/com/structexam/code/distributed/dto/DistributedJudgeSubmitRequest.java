@@ -13,6 +13,12 @@ public class DistributedJudgeSubmitRequest {
     private Integer maxScore;
     private boolean persistResult;
 
+    /** RUN / SUBMIT / SUBMIT_ALL / REJUDGE；空时默认 SUBMIT */
+    private String triggerType;
+
+    /** 关联的 t_code_submission.id，用于 t_judge_record.submission_id 回填 */
+    private Long submissionId;
+
     public Long getExamId() {
         return examId;
     }
@@ -67,5 +73,21 @@ public class DistributedJudgeSubmitRequest {
 
     public void setPersistResult(boolean persistResult) {
         this.persistResult = persistResult;
+    }
+
+    public String getTriggerType() {
+        return triggerType;
+    }
+
+    public void setTriggerType(String triggerType) {
+        this.triggerType = triggerType;
+    }
+
+    public Long getSubmissionId() {
+        return submissionId;
+    }
+
+    public void setSubmissionId(Long submissionId) {
+        this.submissionId = submissionId;
     }
 }

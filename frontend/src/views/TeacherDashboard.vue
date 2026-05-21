@@ -119,9 +119,16 @@
               <template #default="{ row }">{{ questionTypeText(row.type) }}</template>
             </el-table-column>
             <el-table-column prop="score" label="分值" width="70" align="center" />
-            <el-table-column label="操作" width="150">
+            <el-table-column label="操作" width="200">
               <template #default="{ row }">
                 <el-button size="small" @click="openQuestionDialog(row)">编辑</el-button>
+                <el-button
+                  v-if="row.type === 'PROGRAMMING'"
+                  size="small"
+                  type="primary"
+                  plain
+                  @click="openTestCaseDialog(row)"
+                >测试用例</el-button>
                 <el-button size="small" type="danger" @click="deleteQuestion(row)">删除</el-button>
               </template>
             </el-table-column>
@@ -244,6 +251,66 @@
         <el-button type="primary" @click="saveQuestion">保存</el-button>
       </template>
     </el-dialog>
+
+    <!-- 测试用例管理对话框 -->
+    <el-dialog
+      v-model="testCaseDialogVisible"
+      :title="`测试用例管理 — ${testCaseQuestion.title || ''}`"
+      width="860px"
+      :close-on-click-modal="false"
+    >
+      <div class="tc-toolbar">
+        <span class="muted">共 {{ testCases.length }} 条用例，通过/未通过由判题服务自动比对。</span>
+        <el-button type="primary" size="small" @click="addTestCaseRow">+ 新增用例</el-button>
+      </div>
+
+      <el-table :data="testCases" v-loading="testCaseLoading" border size="small" class="tc-table">
+        <el-table-column label="#" width="46" align="center">
+          <template #default="{ $index }">{{ $index + 1 }}</template>
+        </el-table-column>
+
+        <el-table-column label="输入数据" min-width="160">
+          <template #default="{ row }">
+            <el-input v-model="row.inputData" type="textarea" :rows="2" placeholder="输入数据（可为空）" />
+          </template>
+        </el-table-column>
+
+        <el-table-column label="期望输出" min-width="160">
+          <template #default="{ row }">
+            <el-input v-model="row.expectedOutput" type="textarea" :rows="2" placeholder="期望输出" />
+          </template>
+        </el-table-column>
+
+        <el-table-column label="是否公开" width="80" align="center">
+          <template #default="{ row }">
+            <el-switch v-model="row.isPublic" />
+          </template>
+        </el-table-column>
+
+        <el-table-column label="分值" width="90" align="center">
+          <template #default="{ row }">
+            <el-input-number v-model="row.score" :min="0" :max="100" size="small" controls-position="right" />
+          </template>
+        </el-table-column>
+
+        <el-table-column label="时限(ms)" width="100" align="center">
+          <template #default="{ row }">
+            <el-input-number v-model="row.timeLimitMs" :min="100" :max="10000" :step="100" size="small" controls-position="right" placeholder="默认" />
+          </template>
+        </el-table-column>
+
+        <el-table-column label="操作" width="70" align="center">
+          <template #default="{ $index }">
+            <el-button type="danger" size="small" plain @click="removeTestCaseRow($index)">删除</el-button>
+          </template>
+        </el-table-column>
+      </el-table>
+
+      <template #footer>
+        <el-button @click="testCaseDialogVisible = false">取消</el-button>
+        <el-button type="primary" :loading="testCaseSaving" @click="saveTestCases">保存全部</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -251,7 +318,7 @@
 import { ref, reactive, onMounted, onBeforeUnmount } from 'vue'
 import { useRoute } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { examApi, questionApi } from '@/api/modules'
+import { examApi, questionApi, testCaseApi } from '@/api/modules'
 
 const route = useRoute()
 const loading = ref(false)
@@ -267,6 +334,13 @@ const examDialogVisible = ref(false)
 const questionDialogVisible = ref(false)
 const examTimeRange = ref([])
 let refreshTimer = null
+
+// ---------- 测试用例管理状态 ----------
+const testCaseDialogVisible = ref(false)
+const testCaseQuestion = ref({})
+const testCases = ref([])
+const testCaseLoading = ref(false)
+const testCaseSaving = ref(false)
 
 const examForm = reactive({
   id: null,
@@ -433,6 +507,70 @@ const deleteQuestion = async (question) => {
   await refreshSelected()
 }
 
+// ---------- 测试用例管理方法 ----------
+
+const openTestCaseDialog = async (question) => {
+  testCaseQuestion.value = question
+  testCaseDialogVisible.value = true
+  testCases.value = []
+  testCaseLoading.value = true
+  try {
+    const res = await testCaseApi.listForTeacher(question.id)
+    testCases.value = (res.data || []).map(tc => ({
+      id: tc.id,
+      inputData: tc.inputData || '',
+      expectedOutput: tc.expectedOutput || '',
+      isPublic: !!tc.isPublic,
+      score: tc.score ?? 0,
+      timeLimitMs: tc.timeLimitMs ?? null,
+      sortOrder: tc.sortOrder ?? 0
+    }))
+  } catch (error) {
+    ElMessage.error('加载测试用例失败')
+  } finally {
+    testCaseLoading.value = false
+  }
+}
+
+const addTestCaseRow = () => {
+  testCases.value.push({
+    id: null,
+    inputData: '',
+    expectedOutput: '',
+    isPublic: true,
+    score: 0,
+    timeLimitMs: null,
+    sortOrder: testCases.value.length + 1
+  })
+}
+
+const removeTestCaseRow = (index) => {
+  testCases.value.splice(index, 1)
+}
+
+const saveTestCases = async () => {
+  if (!testCaseQuestion.value.id) return
+  testCaseSaving.value = true
+  try {
+    const items = testCases.value.map((tc, idx) => ({
+      questionId: testCaseQuestion.value.id,
+      inputData: tc.inputData,
+      expectedOutput: tc.expectedOutput,
+      isPublic: tc.isPublic,
+      score: tc.score || 0,
+      timeLimitMs: tc.timeLimitMs || null,
+      sortOrder: idx + 1
+    }))
+    await testCaseApi.batchSave(testCaseQuestion.value.id, items)
+    ElMessage.success('测试用例已保存')
+    testCaseDialogVisible.value = false
+  } catch (error) {
+    ElMessage.error('保存失败，请重试')
+  } finally {
+    testCaseSaving.value = false
+  }
+}
+
 const gradeObjective = async () => {
   if (!selectedExam.value) return
   const res = await examApi.gradeObjective(selectedExam.value.id)
@@ -587,5 +725,16 @@ onBeforeUnmount(() => {
 .inline-fields {
   display: flex;
   gap: 12px;
+}
+
+.tc-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.tc-table {
+  width: 100%;
 }
 </style>

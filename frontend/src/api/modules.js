@@ -130,3 +130,36 @@ export const sandboxApi = {
     return api.post('/sandbox/run', data)
   }
 }
+
+export const testCaseApi = {
+  listPublic(questionId) {
+    return api.get(`/question/test-case/public/${questionId}`)
+  },
+  listForTeacher(questionId) {
+    return api.get(`/question/test-case/teacher/${questionId}`)
+  },
+  create(data) {
+    return api.post('/question/test-case/teacher', data)
+  },
+  update(id, data) {
+    return api.put(`/question/test-case/teacher/${id}`, data)
+  },
+  remove(id) {
+    return api.delete(`/question/test-case/teacher/${id}`)
+  },
+  batchSave(questionId, items) {
+    return api.put(`/question/test-case/teacher/batch/${questionId}`, items)
+  }
+}
+
+export const judgeRecordApi = {
+  getLatest(examId, questionId) {
+    return api.get('/code/judge/latest', { params: { examId, questionId } })
+  },
+  getByTaskId(taskId) {
+    return api.get(`/code/judge/record/${taskId}`)
+  },
+  getBySubmission(submissionId) {
+    return api.get(`/code/judge/teacher/submission/${submissionId}`)
+  }
+}

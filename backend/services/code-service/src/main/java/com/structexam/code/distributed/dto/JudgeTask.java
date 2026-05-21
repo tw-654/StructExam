@@ -20,6 +20,15 @@ public class JudgeTask {
     private String lockKey;
     private String lockToken;
 
+    /** t_judge_record.id，入队后由 JudgeRecordService.createPending 回填；RUN 类型为 null */
+    private Long judgeRecordId;
+
+    /** RUN / SUBMIT / SUBMIT_ALL / REJUDGE */
+    private String triggerType;
+
+    /** 关联的 t_code_submission.id，用于建立 judge_record → submission 外键 */
+    private Long submissionId;
+
     public String getTaskId() {
         return taskId;
     }
@@ -122,5 +131,29 @@ public class JudgeTask {
 
     public void setLockToken(String lockToken) {
         this.lockToken = lockToken;
+    }
+
+    public Long getJudgeRecordId() {
+        return judgeRecordId;
+    }
+
+    public void setJudgeRecordId(Long judgeRecordId) {
+        this.judgeRecordId = judgeRecordId;
+    }
+
+    public String getTriggerType() {
+        return triggerType;
+    }
+
+    public void setTriggerType(String triggerType) {
+        this.triggerType = triggerType;
+    }
+
+    public Long getSubmissionId() {
+        return submissionId;
+    }
+
+    public void setSubmissionId(Long submissionId) {
+        this.submissionId = submissionId;
     }
 }

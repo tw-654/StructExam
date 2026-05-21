@@ -78,6 +78,79 @@
             </div>
           </div>
         </div>
+
+        <!-- 判定结果面板（提交本题后展示） -->
+        <div class="judge-panel" v-if="showJudgeResult">
+          <div class="judge-header">
+            <span class="judge-title">判定结果</span>
+            <div class="judge-summary" v-if="judgeResult">
+              <el-tag :type="judgeStatusTagType(judgeResult.judgeStatus)" size="large">
+                {{ judgeStatusLabel(judgeResult.judgeStatus) }}
+              </el-tag>
+              <span class="judge-meta" v-if="judgeResult.judgeStatus !== 'JUDGING'">
+                通过 {{ judgeResult.passedCases }}/{{ judgeResult.totalCases }} 个用例 ·
+                得分 {{ judgeResult.score }}/{{ judgeResult.maxScore }} ·
+                耗时 {{ judgeResult.timeUsedMs != null ? judgeResult.timeUsedMs + ' ms' : '-' }}
+              </span>
+            </div>
+            <el-button size="small" plain @click="showJudgeResult = false">关闭</el-button>
+          </div>
+
+          <!-- 加载中 -->
+          <div class="judge-loading" v-if="judgeLoading">
+            <el-icon class="is-loading"><Loading /></el-icon>
+            <span>判题中，请稍候…</span>
+          </div>
+
+          <!-- 编译错误 -->
+          <div class="judge-error-block" v-if="judgeResult && judgeResult.compileError">
+            <div class="error-label">编译错误</div>
+            <pre class="error-pre">{{ judgeResult.compileError }}</pre>
+          </div>
+
+          <!-- 运行时错误 -->
+          <div class="judge-error-block" v-if="judgeResult && judgeResult.runtimeError">
+            <div class="error-label">运行时错误</div>
+            <pre class="error-pre">{{ judgeResult.runtimeError }}</pre>
+          </div>
+
+          <!-- 逐条用例结果 -->
+          <div class="judge-cases" v-if="judgeResult && judgeResult.cases && judgeResult.cases.length">
+            <div
+              v-for="(c, idx) in judgeResult.cases"
+              :key="idx"
+              class="judge-case-item"
+              :class="{ passed: c.passed, failed: !c.passed }"
+            >
+              <div class="case-row">
+                <span class="case-index">用例 {{ idx + 1 }}</span>
+                <el-tag :type="c.passed ? 'success' : 'danger'" size="small">
+                  {{ caseStatusLabel(c.status) }}
+                </el-tag>
+                <span v-if="!c.isPublic && !c.passed" class="hidden-hint">（非公开用例，不显示详情）</span>
+                <span class="case-time" v-if="c.timeUsedMs != null">{{ c.timeUsedMs }} ms</span>
+              </div>
+              <div class="case-detail" v-if="c.isPublic || c.passed">
+                <div class="case-io" v-if="c.inputData">
+                  <span class="io-label">输入</span>
+                  <pre class="io-pre">{{ c.inputData }}</pre>
+                </div>
+                <div class="case-io" v-if="c.expectedOutput">
+                  <span class="io-label">期望</span>
+                  <pre class="io-pre">{{ c.expectedOutput }}</pre>
+                </div>
+                <div class="case-io" v-if="c.actualOutput != null">
+                  <span class="io-label">实际</span>
+                  <pre class="io-pre" :class="{ mismatch: !c.passed }">{{ c.actualOutput }}</pre>
+                </div>
+                <div class="case-io" v-if="c.errorMessage">
+                  <span class="io-label error-label">错误</span>
+                  <pre class="io-pre error-pre">{{ c.errorMessage }}</pre>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
       </el-main>
     </el-container>
   </div>
@@ -86,8 +159,9 @@
 <script setup>
 import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { examApi, codeApi } from '@/api/modules'
+import { examApi, codeApi, judgeRecordApi } from '@/api/modules'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { Loading } from '@element-plus/icons-vue'
 import * as monaco from 'monaco-editor'
 
 const route = useRoute()
@@ -110,6 +184,12 @@ const answeredQuestions = ref([])
 let editor = null
 let timer = null
 let submitted = false
+let judgePollTimer = null
+
+// ---------- 判定结果状态 ----------
+const showJudgeResult = ref(false)
+const judgeLoading = ref(false)
+const judgeResult = ref(null)
 
 const currentQuestion = computed(() => questions.value[currentQuestionIndex.value] || {})
 
@@ -286,17 +366,92 @@ const handleSubmitQuestion = async () => {
     })
 
     await saveCurrentCode()
-    const taskId = await submitOfficialJudgeTask(editor.getValue(), currentQuestion.value.id)
+    await submitOfficialJudgeTask(editor.getValue(), currentQuestion.value.id)
     if (!answeredQuestions.value.includes(currentQuestion.value.id)) {
       answeredQuestions.value.push(currentQuestion.value.id)
     }
-    ElMessage.success(`题目已提交，任务号：${taskId}`)
+    ElMessage.success('题目已提交，正在判题…')
+    startJudgePoll(currentQuestion.value.id)
   } catch (error) {
     if (error !== 'cancel') {
       console.error('Failed to submit question:', error)
     }
   }
 }
+
+/** 开始轮询判题结果（每 2 秒一次，最多 60 次）。 */
+const startJudgePoll = (questionId) => {
+  stopJudgePoll()
+  showJudgeResult.value = true
+  judgeLoading.value = true
+  judgeResult.value = null
+
+  let attempts = 0
+  const poll = async () => {
+    try {
+      const res = await judgeRecordApi.getLatest(examId.value, questionId)
+      const record = res.data
+      if (record && record.judgeStatus !== 'JUDGING') {
+        judgeResult.value = record
+        judgeLoading.value = false
+        stopJudgePoll()
+        return
+      }
+      // 还在判题中，继续轮询
+      judgeResult.value = record
+    } catch (error) {
+      // 404 means no record yet, keep polling
+    }
+    attempts++
+    if (attempts >= 60) {
+      judgeLoading.value = false
+      stopJudgePoll()
+      ElMessage.warning('等待判题结果超时，请稍后刷新')
+    }
+  }
+
+  poll()
+  judgePollTimer = setInterval(poll, 2000)
+}
+
+const stopJudgePoll = () => {
+  if (judgePollTimer) {
+    clearInterval(judgePollTimer)
+    judgePollTimer = null
+  }
+}
+
+const judgeStatusLabel = (status) => ({
+  JUDGING: '判题中',
+  AC: '通过',
+  WA: '答案错误',
+  TLE: '超时',
+  MLE: '内存超限',
+  RE: '运行错误',
+  CE: '编译错误',
+  FAILED: '系统错误'
+}[status] || status || '-')
+
+const judgeStatusTagType = (status) => ({
+  JUDGING: 'info',
+  AC: 'success',
+  WA: 'danger',
+  TLE: 'warning',
+  MLE: 'warning',
+  RE: 'danger',
+  CE: 'danger',
+  FAILED: 'danger'
+}[status] || 'info')
+
+const caseStatusLabel = (status) => ({
+  AC: 'AC',
+  WA: '答案错误',
+  TLE: '超时',
+  MLE: '内存超限',
+  RE: '运行错误',
+  CE: '编译错误',
+  FAILED: '失败'
+}[status] || status || '-')
 
 const doSubmitExam = async () => {
   if (submitted) return
@@ -437,6 +592,7 @@ onMounted(async () => {
 
 onBeforeUnmount(() => {
   if (timer) clearInterval(timer)
+  stopJudgePoll()
   if (editor) editor.dispose()
 })
 </script>
@@ -674,5 +830,165 @@ onBeforeUnmount(() => {
 .terminal-body .error {
   color: #f14c4c;
   margin: 2px 0;
+}
+
+/* ---- 判定结果面板 ---- */
+.judge-panel {
+  background: #fff;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.judge-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  border-bottom: 1px solid #e6e6e6;
+}
+
+.judge-title {
+  font-weight: 600;
+  font-size: 14px;
+  white-space: nowrap;
+}
+
+.judge-summary {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1;
+}
+
+.judge-meta {
+  font-size: 13px;
+  color: #666;
+}
+
+.judge-loading {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 20px 16px;
+  color: #409eff;
+  font-size: 14px;
+}
+
+.judge-error-block {
+  margin: 12px 16px;
+  background: #fff0f0;
+  border-radius: 4px;
+  padding: 10px 12px;
+}
+
+.error-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: #f56c6c;
+  margin-bottom: 6px;
+}
+
+.error-pre {
+  font-family: Consolas, Monaco, monospace;
+  font-size: 13px;
+  color: #c0392b;
+  margin: 0;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+.judge-cases {
+  padding: 12px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.judge-case-item {
+  border-radius: 4px;
+  border: 1px solid #ebeef5;
+  overflow: hidden;
+}
+
+.judge-case-item.passed {
+  border-color: #b3e19d;
+}
+
+.judge-case-item.failed {
+  border-color: #fbc4c4;
+}
+
+.case-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  background: #fafafa;
+}
+
+.judge-case-item.passed .case-row {
+  background: #f0f9eb;
+}
+
+.judge-case-item.failed .case-row {
+  background: #fef0f0;
+}
+
+.case-index {
+  font-weight: 500;
+  font-size: 13px;
+  min-width: 48px;
+}
+
+.hidden-hint {
+  font-size: 12px;
+  color: #999;
+}
+
+.case-time {
+  margin-left: auto;
+  font-size: 12px;
+  color: #999;
+}
+
+.case-detail {
+  padding: 8px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.case-io {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+}
+
+.io-label {
+  min-width: 32px;
+  font-size: 12px;
+  color: #666;
+  padding-top: 2px;
+  font-weight: 600;
+}
+
+.io-pre {
+  flex: 1;
+  font-family: Consolas, Monaco, monospace;
+  font-size: 13px;
+  margin: 0;
+  padding: 4px 8px;
+  background: #f5f5f5;
+  border-radius: 3px;
+  white-space: pre-wrap;
+  word-break: break-all;
+  color: #333;
+}
+
+.io-pre.mismatch {
+  background: #fff0f0;
+  color: #c0392b;
 }
 </style>

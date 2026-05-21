@@ -49,6 +49,7 @@ CREATE TABLE IF NOT EXISTS t_question (
     score INT NOT NULL DEFAULT 10 COMMENT '分值',
     sort_order INT DEFAULT 0 COMMENT '排序',
     create_time DATETIME DEFAULT CURRENT_TIMESTAMP,
+    update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     INDEX idx_exam_id (exam_id),
     INDEX idx_type (type),
     FOREIGN KEY (exam_id) REFERENCES t_exam(id) ON DELETE CASCADE
@@ -118,3 +119,85 @@ INSERT INTO t_user (username, password, real_name, role, email) VALUES
 
 -- 密码统一为: StructExam123 (BCrypt加密后)
 -- 注意: 上述密码是占位符,实际使用时需要正确的BCrypt加密
+
+-- ============================================================
+-- 测试用例判定功能 (新增表，不改动既有表)
+-- ============================================================
+
+-- 题目测试用例表
+CREATE TABLE IF NOT EXISTS t_question_test_case (
+    id              BIGINT PRIMARY KEY AUTO_INCREMENT,
+    question_id     BIGINT       NOT NULL                COMMENT '题目ID',
+    case_name       VARCHAR(100)                         COMMENT '用例名称(可选)',
+    input_data      MEDIUMTEXT   NOT NULL                COMMENT '输入数据',
+    expected_output MEDIUMTEXT                           COMMENT '期望输出(允许空，例如对拍特判)',
+    is_sample       TINYINT(1)   NOT NULL DEFAULT 0      COMMENT '是否为题面样例(题目描述展示)',
+    is_public       TINYINT(1)   NOT NULL DEFAULT 0      COMMENT '是否对学生公开(失败时是否返回 input/expected)',
+    score           INT          NOT NULL DEFAULT 0      COMMENT '本用例得分(0 表示不计分,仅参考)',
+    time_limit_ms   INT                                  COMMENT '时间限制(ms),NULL 则用题目默认',
+    memory_limit_kb INT                                  COMMENT '内存限制(KB),NULL 则用题目默认',
+    sort_order      INT          NOT NULL DEFAULT 0      COMMENT '排序',
+    status          TINYINT      NOT NULL DEFAULT 1      COMMENT '1启用 0禁用',
+    create_time     DATETIME              DEFAULT CURRENT_TIMESTAMP,
+    update_time     DATETIME              DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    INDEX idx_question_sort   (question_id, sort_order),
+    INDEX idx_question_status (question_id, status),
+    FOREIGN KEY (question_id) REFERENCES t_question(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='题目测试用例表';
+
+-- 判题记录表(每次"运行/提交本题"产生一条)
+CREATE TABLE IF NOT EXISTS t_judge_record (
+    id              BIGINT PRIMARY KEY AUTO_INCREMENT,
+    task_id         VARCHAR(64)  NOT NULL                COMMENT '分布式任务ID',
+    submission_id   BIGINT                               COMMENT '关联 t_code_submission.id(RUN 可空)',
+    exam_id         BIGINT       NOT NULL,
+    user_id         BIGINT       NOT NULL,
+    question_id     BIGINT       NOT NULL,
+    language        VARCHAR(50)  NOT NULL,
+    code_snapshot   MEDIUMTEXT                           COMMENT '本次判题代码快照',
+    trigger_type    VARCHAR(20)  NOT NULL DEFAULT 'SUBMIT' COMMENT 'RUN/SUBMIT/SUBMIT_ALL/REJUDGE',
+    judge_status    VARCHAR(20)  NOT NULL DEFAULT 'JUDGING' COMMENT 'AC/WA/CE/RE/TLE/MLE/PE/FAILED/JUDGING',
+    total_cases     INT          NOT NULL DEFAULT 0,
+    passed_cases    INT          NOT NULL DEFAULT 0,
+    score           INT          NOT NULL DEFAULT 0,
+    max_score       INT          NOT NULL DEFAULT 0,
+    time_used_ms    BIGINT                               COMMENT '所有用例最大耗时',
+    memory_used_kb  BIGINT                               COMMENT '所有用例最大内存',
+    compile_error   TEXT,
+    runtime_error   TEXT,
+    judge_message   TEXT,
+    sandbox_node    VARCHAR(128)                         COMMENT '执行节点URI',
+    started_time    DATETIME,
+    finished_time   DATETIME,
+    create_time     DATETIME              DEFAULT CURRENT_TIMESTAMP,
+    update_time     DATETIME              DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    UNIQUE KEY uk_task_id           (task_id),
+    INDEX idx_submission            (submission_id),
+    INDEX idx_exam_user_question    (exam_id, user_id, question_id, create_time),
+    INDEX idx_judge_status          (judge_status),
+    FOREIGN KEY (submission_id) REFERENCES t_code_submission(id) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='判题记录表';
+
+-- 判题用例明细表(每条用例一行)
+CREATE TABLE IF NOT EXISTS t_judge_case_result (
+    id              BIGINT PRIMARY KEY AUTO_INCREMENT,
+    judge_record_id BIGINT       NOT NULL                COMMENT '关联 t_judge_record.id',
+    test_case_id    BIGINT                               COMMENT '关联 t_question_test_case.id(自定义输入可空)',
+    case_index      INT          NOT NULL                COMMENT '当次判题中的序号(0,1,2...)',
+    case_name       VARCHAR(100)                         COMMENT '用例名称快照',
+    status          VARCHAR(20)  NOT NULL                COMMENT 'AC/WA/TLE/MLE/RE/PE/SKIP',
+    passed          TINYINT(1)   NOT NULL DEFAULT 0,
+    is_public       TINYINT(1)   NOT NULL DEFAULT 0      COMMENT '是否对学生公开 input/expected',
+    input_data      MEDIUMTEXT                           COMMENT '输入快照',
+    expected_output MEDIUMTEXT                           COMMENT '期望输出快照',
+    actual_output   MEDIUMTEXT                           COMMENT '实际输出',
+    error_message   TEXT                                 COMMENT '本条错误信息',
+    time_used_ms    BIGINT,
+    memory_used_kb  BIGINT,
+    score           INT          NOT NULL DEFAULT 0,
+    create_time     DATETIME              DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_record_index (judge_record_id, case_index),
+    INDEX idx_test_case    (test_case_id),
+    FOREIGN KEY (judge_record_id) REFERENCES t_judge_record(id)        ON DELETE CASCADE,
+    FOREIGN KEY (test_case_id)   REFERENCES t_question_test_case(id)   ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='判题用例明细表';

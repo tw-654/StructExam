@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.structexam.code.mapper.CodeSubmissionMapper;
+import com.structexam.code.service.JudgeRecordService;
 import com.structexam.code.distributed.config.DistributedJudgeProperties;
 import com.structexam.code.distributed.dto.JudgeResult;
 import com.structexam.code.distributed.dto.JudgeTaskStatus;
@@ -42,6 +43,7 @@ public class DistributedJudgeScheduler {
     private final Executor distributedJudgeExecutor;
     private final RedisDistributedLockService lockService;
     private final CodeSubmissionMapper codeSubmissionMapper;
+    private final JudgeRecordService judgeRecordService;
 
     public DistributedJudgeScheduler(JudgeTaskQueueService queueService,
                                      SandboxNodeRegistry nodeRegistry,
@@ -50,7 +52,8 @@ public class DistributedJudgeScheduler {
                                      DistributedJudgeProperties properties,
                                      Executor distributedJudgeExecutor,
                                      RedisDistributedLockService lockService,
-                                     CodeSubmissionMapper codeSubmissionMapper) {
+                                     CodeSubmissionMapper codeSubmissionMapper,
+                                     JudgeRecordService judgeRecordService) {
         this.queueService = queueService;
         this.nodeRegistry = nodeRegistry;
         this.restTemplate = distributedJudgeRestTemplate;
@@ -59,6 +62,7 @@ public class DistributedJudgeScheduler {
         this.distributedJudgeExecutor = distributedJudgeExecutor;
         this.lockService = lockService;
         this.codeSubmissionMapper = codeSubmissionMapper;
+        this.judgeRecordService = judgeRecordService;
     }
 
     @Scheduled(fixedDelayString = "${distributed.judge.scheduler-delay-ms:100}")
@@ -108,6 +112,8 @@ public class DistributedJudgeScheduler {
             queueService.saveResult(result);
             if (task.isPersistResult()) {
                 persistJudgeResult(task, result);
+                // 写入测试用例判定明细（t_judge_record + t_judge_case_result）
+                judgeRecordService.completeJudge(task, result);
             }
             queueService.ack(payload);
             releaseSubmitLock(task);
@@ -154,6 +160,8 @@ public class DistributedJudgeScheduler {
             queueService.saveResult(result);
             if (task.isPersistResult()) {
                 persistJudgeResult(task, result);
+                // 最终失败时同样更新 t_judge_record 状态，避免记录永久停留在 JUDGING
+                judgeRecordService.completeJudge(task, result);
             }
             queueService.ack(payload);
             releaseSubmitLock(task);

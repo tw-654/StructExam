@@ -24,6 +24,7 @@ import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
 import java.time.Duration;
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -64,7 +65,7 @@ public class ExamService {
         wrapper.orderByDesc(Exam::getCreateTime);
         Page<Exam> result = examMapper.selectPage(page, wrapper);
 
-        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime now = LocalDateTime.now(ZoneId.of("Asia/Shanghai"));
         for (Exam exam : result.getRecords()) {
             if (now.isBefore(exam.getStartTime())) {
                 exam.setStatus("PUBLISHED");
@@ -177,7 +178,7 @@ public class ExamService {
             throw new BusinessException(404, "Exam not found");
         }
 
-        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime now = LocalDateTime.now(ZoneId.of("Asia/Shanghai"));
         if (now.isBefore(exam.getStartTime())) {
             throw new BusinessException(400, "Exam has not started yet");
         }
@@ -222,7 +223,7 @@ public class ExamService {
             throw new BusinessException(404, "Exam not found");
         }
         ExamRecord record = getExamRecord(examId, userId);
-        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime now = LocalDateTime.now(ZoneId.of("Asia/Shanghai"));
         LocalDateTime deadline = null;
         long remainingSeconds = 0L;
         if (record != null && "IN_PROGRESS".equals(record.getStatus()) && record.getEnterTime() != null) {
@@ -266,7 +267,7 @@ public class ExamService {
             throw new BusinessException(400, "Exam has already been submitted");
         }
 
-        record.setSubmitTime(LocalDateTime.now());
+        record.setSubmitTime(LocalDateTime.now(ZoneId.of("Asia/Shanghai")));
         record.setStatus("SUBMITTED");
         examRecordMapper.updateById(record);
 
