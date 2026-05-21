@@ -1,0 +1,33 @@
+# Docker Compose 网络内使用服务名访问各微服务（勿用 localhost）
+spring:
+  cloud:
+    gateway:
+      routes:
+        - id: user-service
+          uri: http://user-service:8081
+          predicates:
+            - Path=/api/user/**
+          filters:
+            - StripPrefix=1
+        - id: exam-service
+          uri: http://exam-service:8082
+          predicates:
+            - Path=/api/exam/**
+          filters:
+            - StripPrefix=1
+        - id: code-service
+          uri: http://code-service:8083
+          predicates:
+            - Path=/api/code/**
+          filters:
+            - StripPrefix=1
+        - id: auth-service
+          uri: http://user-service:8081
+          predicates:
+            - Path=/api/auth/**
+          filters:
+            - StripPrefix=1
+  data:
+    redis:
+      host: ${REDIS_HOST:redis}
+      port: 6379

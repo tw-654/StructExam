@@ -23,14 +23,15 @@ export const useAuthStore = defineStore('auth', {
     async login(loginForm) {
       const res = await authApi.login(loginForm)
       this.token = res.data.token
+      const userId = res.data.id || res.data.userId || '1'
       this.userInfo = {
-        id: res.data.id,
+        id: userId,
         username: res.data.username,
         realName: res.data.realName,
         role: res.data.role
       }
       localStorage.setItem('token', this.token)
-      localStorage.setItem('userId', res.data.id)
+      localStorage.setItem('userId', userId)
       localStorage.setItem('username', res.data.username)
       localStorage.setItem('realName', res.data.realName)
       localStorage.setItem('role', res.data.role)

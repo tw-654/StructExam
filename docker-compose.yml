@@ -54,6 +54,7 @@ services:
       MYSQL_HOST: mysql
       REDIS_HOST: redis
       JWT_SECRET: structexam-secret-key-for-jwt-token-generation
+      SPRING_PROFILES_ACTIVE: docker
     ports:
       - "8080:8080"
     depends_on:

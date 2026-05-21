@@ -49,6 +49,7 @@ CREATE TABLE IF NOT EXISTS t_question (
     score INT NOT NULL DEFAULT 10 COMMENT '分值',
     sort_order INT DEFAULT 0 COMMENT '排序',
     create_time DATETIME DEFAULT CURRENT_TIMESTAMP,
+    update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     INDEX idx_exam_id (exam_id),
     INDEX idx_type (type),
     FOREIGN KEY (exam_id) REFERENCES t_exam(id) ON DELETE CASCADE
@@ -110,11 +111,10 @@ CREATE TABLE IF NOT EXISTS t_code_version (
     FOREIGN KEY (submission_id) REFERENCES t_code_submission(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='代码版本表';
 
--- 插入测试数据
+-- 插入测试数据 (密码为: StructExam123)
 INSERT INTO t_user (username, password, real_name, role, email) VALUES
-('admin', '$2a$10$N.zmdr9k7uOCQb376NoUnuTJ8iAt6Z5EHsM8lE9lBOsl7iAt6Z5EH', '管理员', 'ADMIN', 'admin@structexam.com'),
-('teacher01', '$2a$10$N.zmdr9k7uOCQb376NoUnuTJ8iAt6Z5EHsM8lE9lBOsl7iAt6Z5EH', '张老师', 'TEACHER', 'teacher01@structexam.com'),
-('student01', '$2a$10$N.zmdr9k7uOCQb376NoUnuTJ8iAt6Z5EHsM8lE9lBOsl7iAt6Z5EH', '李同学', 'STUDENT', 'student01@structexam.com');
-
--- 密码统一为: StructExam123 (BCrypt加密后)
--- 注意: 上述密码是占位符,实际使用时需要正确的BCrypt加密
+('admin', '$2a$10$82GrxSPQJUsL/CPXhTS6D.bm5sceVwl/TiLQD6XZSyD0F0rsclQta', '管理员', 'ADMIN', 'admin@structexam.com'),
+('teacher01', '$2a$10$82GrxSPQJUsL/CPXhTS6D.bm5sceVwl/TiLQD6XZSyD0F0rsclQta', '张老师', 'TEACHER', 'teacher01@structexam.com'),
+('student01', '$2a$10$82GrxSPQJUsL/CPXhTS6D.bm5sceVwl/TiLQD6XZSyD0F0rsclQta', '李同学', 'STUDENT', 'student01@structexam.com'),
+('student02', '$2a$10$82GrxSPQJUsL/CPXhTS6D.bm5sceVwl/TiLQD6XZSyD0F0rsclQta', '王同学', 'STUDENT', 'student02@structexam.com'),
+('jmeter_docker_01', '$2a$10$82GrxSPQJUsL/CPXhTS6D.bm5sceVwl/TiLQD6XZSyD0F0rsclQta', 'JMeter测试用户', 'STUDENT', 'jmeter@structexam.com');

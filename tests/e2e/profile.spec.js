@@ -27,4 +27,34 @@ test.describe('个人中心页面（需登录）', () => {
     await page.getByText('退出登录').click()
     await expect(page).toHaveURL(/\/login/, { timeout: 10_000 })
   })
+
+  test('查看个人信息', async ({ page }) => {
+    await page.locator('.el-dropdown-link').click()
+    await page.getByText('个人中心').click()
+    await expect(page).toHaveURL(/\/profile/, { timeout: 10_000 })
+    
+    await expect(page.locator('.profile-info')).toBeVisible()
+    await expect(page.getByText('用户名')).toBeVisible()
+    await expect(page.getByText('角色')).toBeVisible()
+  })
+
+  test('修改密码', async ({ page }) => {
+    await page.locator('.el-dropdown-link').click()
+    await page.getByText('个人中心').click()
+    await expect(page).toHaveURL(/\/profile/, { timeout: 10_000 })
+    
+    const changePwdBtn = page.getByRole('button', { name: '修改密码' })
+    if (await changePwdBtn.isVisible()) {
+      const inputs = page.locator('input[type="password"]')
+      if ((await inputs.count()) >= 3) {
+        await inputs.nth(0).fill(password)
+        await inputs.nth(1).fill('NewPassword123')
+        await inputs.nth(2).fill('NewPassword123')
+        
+        await changePwdBtn.click()
+        await page.waitForSelector('.el-message--success', { timeout: 10000 })
+        await expect(page.locator('.el-message--success').first()).toContainText('success')
+      }
+    }
+  })
 })

@@ -3,6 +3,19 @@ const { test, expect } = require('@playwright/test')
 const username = process.env.E2E_STUDENT_USERNAME
 const password = process.env.E2E_STUDENT_PASSWORD
 
+const getEnabledEnterButton = async (page) => {
+  const enterBtns = page.getByRole('button', { name: '进入考试' })
+  const count = await enterBtns.count()
+  
+  for (let i = 0; i < count; i++) {
+    const btn = enterBtns.nth(i)
+    if (await btn.isEnabled()) {
+      return btn
+    }
+  }
+  return null
+}
+
 test.describe('考试列表页面（需登录）', () => {
   test.beforeEach(async ({ page }) => {
     if (!username || !password) {
@@ -27,9 +40,10 @@ test.describe('考试列表页面（需登录）', () => {
 
   test('尝试进入考试（如果有可用考试）', async ({ page }) => {
     await page.waitForSelector('.el-table', { timeout: 10_000 })
-    const enterBtn = page.getByRole('button', { name: '进入考试' })
-    if (await enterBtn.isVisible()) {
-      await enterBtn.first().click()
+    const enterBtn = await getEnabledEnterButton(page)
+    
+    if (enterBtn) {
+      await enterBtn.click()
       await page.waitForSelector('.el-message-box', { timeout: 5000 })
       await page.getByRole('button', { name: '取消' }).click()
     }

@@ -25,4 +25,22 @@ test.describe('历史记录页面（需登录）', () => {
   test('历史记录页面展示', async ({ page }) => {
     await expect(page.getByRole('heading', { name: '考试记录' })).toBeVisible()
   })
+
+  test('历史记录表格展示', async ({ page }) => {
+    await page.waitForSelector('.el-table', { timeout: 10_000 })
+    const table = page.locator('.el-table')
+    await expect(table).toBeVisible()
+    
+    await expect(page.getByRole('columnheader', { name: '考试ID' })).toBeVisible()
+    await expect(page.getByRole('columnheader', { name: '得分' })).toBeVisible()
+    await expect(page.getByRole('columnheader', { name: '状态' })).toBeVisible()
+    await expect(page.getByRole('columnheader', { name: '进入时间' })).toBeVisible()
+  })
+
+  test('查看考试记录列表', async ({ page }) => {
+    await page.waitForSelector('.el-table', { timeout: 10_000 })
+    const rows = page.locator('.el-table .el-table__row')
+    const count = await rows.count()
+    console.log(`历史记录数量: ${count}`)
+  })
 })

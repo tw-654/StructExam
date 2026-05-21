@@ -3,6 +3,19 @@ const { test, expect } = require('@playwright/test')
 const username = process.env.E2E_STUDENT_USERNAME
 const password = process.env.E2E_STUDENT_PASSWORD
 
+const getEnabledEnterButton = async (page) => {
+  const enterBtns = page.getByRole('button', { name: '进入考试' })
+  const count = await enterBtns.count()
+  
+  for (let i = 0; i < count; i++) {
+    const btn = enterBtns.nth(i)
+    if (await btn.isEnabled()) {
+      return btn
+    }
+  }
+  return null
+}
+
 test.describe('答题页面（需登录且有可用考试）', () => {
   test.beforeEach(async ({ page }) => {
     if (!username || !password) {
@@ -17,10 +30,10 @@ test.describe('答题页面（需登录且有可用考试）', () => {
 
   test('进入考试页面', async ({ page }) => {
     await page.waitForSelector('.el-table', { timeout: 10_000 })
-    const enterBtn = page.getByRole('button', { name: '进入考试' })
+    const enterBtn = await getEnabledEnterButton(page)
     
-    if (await enterBtn.isVisible()) {
-      await enterBtn.first().click()
+    if (enterBtn) {
+      await enterBtn.click()
       await page.waitForSelector('.el-message-box', { timeout: 5000 })
       await page.getByRole('button', { name: '进入', exact: true }).click()
       await page.waitForLoadState('networkidle', { timeout: 15_000 })
@@ -31,10 +44,10 @@ test.describe('答题页面（需登录且有可用考试）', () => {
 
   test('进入考试弹窗确认', async ({ page }) => {
     await page.waitForSelector('.el-table', { timeout: 10_000 })
-    const enterBtn = page.getByRole('button', { name: '进入考试' })
+    const enterBtn = await getEnabledEnterButton(page)
     
-    if (await enterBtn.isVisible()) {
-      await enterBtn.first().click()
+    if (enterBtn) {
+      await enterBtn.click()
       await page.waitForSelector('.el-message-box', { timeout: 5000 })
       await expect(page.getByRole('button', { name: '进入', exact: true })).toBeVisible()
       await expect(page.getByRole('button', { name: '取消' })).toBeVisible()
@@ -46,10 +59,10 @@ test.describe('答题页面（需登录且有可用考试）', () => {
 
   test('考试信息与倒计时展示', async ({ page }) => {
     await page.waitForSelector('.el-table', { timeout: 10_000 })
-    const enterBtn = page.getByRole('button', { name: '进入考试' })
+    const enterBtn = await getEnabledEnterButton(page)
     
-    if (await enterBtn.isVisible()) {
-      await enterBtn.first().click()
+    if (enterBtn) {
+      await enterBtn.click()
       await page.waitForSelector('.el-message-box', { timeout: 5000 })
       await page.getByRole('button', { name: '进入', exact: true }).click()
       await page.waitForSelector('.exam-info', { timeout: 15_000 })
@@ -64,10 +77,10 @@ test.describe('答题页面（需登录且有可用考试）', () => {
 
   test('题目列表导航功能', async ({ page }) => {
     await page.waitForSelector('.el-table', { timeout: 10_000 })
-    const enterBtn = page.getByRole('button', { name: '进入考试' })
+    const enterBtn = await getEnabledEnterButton(page)
     
-    if (await enterBtn.isVisible()) {
-      await enterBtn.first().click()
+    if (enterBtn) {
+      await enterBtn.click()
       await page.waitForSelector('.el-message-box', { timeout: 5000 })
       await page.getByRole('button', { name: '进入', exact: true }).click()
       await page.waitForSelector('.question-nav', { timeout: 15_000 })
@@ -86,10 +99,10 @@ test.describe('答题页面（需登录且有可用考试）', () => {
 
   test('答题页面操作按钮展示', async ({ page }) => {
     await page.waitForSelector('.el-table', { timeout: 10_000 })
-    const enterBtn = page.getByRole('button', { name: '进入考试' })
+    const enterBtn = await getEnabledEnterButton(page)
     
-    if (await enterBtn.isVisible()) {
-      await enterBtn.first().click()
+    if (enterBtn) {
+      await enterBtn.click()
       await page.waitForSelector('.el-message-box', { timeout: 5000 })
       await page.getByRole('button', { name: '进入', exact: true }).click()
       await page.waitForSelector('.action-buttons', { timeout: 15_000 })
@@ -104,10 +117,10 @@ test.describe('答题页面（需登录且有可用考试）', () => {
 
   test('保存代码功能', async ({ page }) => {
     await page.waitForSelector('.el-table', { timeout: 10_000 })
-    const enterBtn = page.getByRole('button', { name: '进入考试' })
+    const enterBtn = await getEnabledEnterButton(page)
     
-    if (await enterBtn.isVisible()) {
-      await enterBtn.first().click()
+    if (enterBtn) {
+      await enterBtn.click()
       await page.waitForSelector('.el-message-box', { timeout: 5000 })
       await page.getByRole('button', { name: '进入', exact: true }).click()
       await page.waitForSelector('.action-buttons', { timeout: 15_000 })
@@ -124,10 +137,10 @@ test.describe('答题页面（需登录且有可用考试）', () => {
 
   test('提交本题功能', async ({ page }) => {
     await page.waitForSelector('.el-table', { timeout: 10_000 })
-    const enterBtn = page.getByRole('button', { name: '进入考试' })
+    const enterBtn = await getEnabledEnterButton(page)
     
-    if (await enterBtn.isVisible()) {
-      await enterBtn.first().click()
+    if (enterBtn) {
+      await enterBtn.click()
       await page.waitForSelector('.el-message-box', { timeout: 5000 })
       await page.getByRole('button', { name: '进入', exact: true }).click()
       await page.waitForSelector('.action-buttons', { timeout: 15_000 })
@@ -145,10 +158,10 @@ test.describe('答题页面（需登录且有可用考试）', () => {
 
   test('交卷确认弹窗', async ({ page }) => {
     await page.waitForSelector('.el-table', { timeout: 10_000 })
-    const enterBtn = page.getByRole('button', { name: '进入考试' })
+    const enterBtn = await getEnabledEnterButton(page)
     
-    if (await enterBtn.isVisible()) {
-      await enterBtn.first().click()
+    if (enterBtn) {
+      await enterBtn.click()
       await page.waitForSelector('.el-message-box', { timeout: 5000 })
       await page.getByRole('button', { name: '进入', exact: true }).click()
       await page.waitForSelector('.action-buttons', { timeout: 15_000 })

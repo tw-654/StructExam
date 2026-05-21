@@ -378,11 +378,120 @@ public class ExamService {
         List<Integer> scores = records.stream()
                 .map(ExamRecord::getScore)
                 .filter(score -> score != null)
+                .sorted()
                 .collect(Collectors.toList());
-        dto.setAverageScore(scores.isEmpty() ? 0D : scores.stream().mapToInt(Integer::intValue).average().orElse(0D));
-        dto.setMaxScore(scores.isEmpty() ? 0 : scores.stream().mapToInt(Integer::intValue).max().orElse(0));
-        dto.setMinScore(scores.isEmpty() ? 0 : scores.stream().mapToInt(Integer::intValue).min().orElse(0));
+
+        int gradedCount = scores.size();
+        int totalScore = exam.getTotalScore() != null ? exam.getTotalScore() : 100;
+        int passScore = (int) (totalScore * 0.6);
+
+        if (!scores.isEmpty()) {
+            double average = scores.stream().mapToInt(Integer::intValue).average().orElse(0D);
+            dto.setAverageScore(Math.round(average * 100.0) / 100.0);
+            dto.setMaxScore(scores.stream().mapToInt(Integer::intValue).max().orElse(0));
+            dto.setMinScore(scores.stream().mapToInt(Integer::intValue).min().orElse(0));
+
+            if (gradedCount % 2 == 0) {
+                dto.setMedianScore((scores.get(gradedCount / 2 - 1) + scores.get(gradedCount / 2)) / 2.0);
+            } else {
+                dto.setMedianScore(scores.get(gradedCount / 2).doubleValue());
+            }
+
+            double variance = scores.stream()
+                    .mapToDouble(score -> Math.pow(score - average, 2))
+                    .average()
+                    .orElse(0);
+            dto.setStdDev(Math.round(Math.sqrt(variance) * 100.0) / 100.0);
+
+            long passCount = scores.stream().filter(s -> s >= passScore).count();
+            long failCount = gradedCount - passCount;
+            dto.setPassCount((int) passCount);
+            dto.setFailCount((int) failCount);
+            dto.setPassRate(gradedCount > 0 ? Math.round((passCount * 100.0 / gradedCount) * 100.0) / 100.0 : 0D);
+
+            dto.setScoreDistribution(calculateScoreDistribution(scores));
+            dto.setScoreRanges(calculateScoreRanges(scores, totalScore));
+            dto.setGradeDistribution(calculateGradeDistribution(scores, totalScore));
+        } else {
+            dto.setAverageScore(0D);
+            dto.setMaxScore(0);
+            dto.setMinScore(0);
+            dto.setMedianScore(0D);
+            dto.setStdDev(0D);
+            dto.setPassCount(0);
+            dto.setFailCount(0);
+            dto.setPassRate(0D);
+        }
+
         return dto;
+    }
+
+    private Map<String, Integer> calculateScoreDistribution(List<Integer> scores) {
+        Map<String, Integer> distribution = new java.util.HashMap<>();
+        distribution.put("0-29", 0);
+        distribution.put("30-59", 0);
+        distribution.put("60-74", 0);
+        distribution.put("75-89", 0);
+        distribution.put("90-100", 0);
+
+        for (Integer score : scores) {
+            if (score >= 0 && score <= 29) {
+                distribution.merge("0-29", 1, Integer::sum);
+            } else if (score >= 30 && score <= 59) {
+                distribution.merge("30-59", 1, Integer::sum);
+            } else if (score >= 60 && score <= 74) {
+                distribution.merge("60-74", 1, Integer::sum);
+            } else if (score >= 75 && score <= 89) {
+                distribution.merge("75-89", 1, Integer::sum);
+            } else if (score >= 90 && score <= 100) {
+                distribution.merge("90-100", 1, Integer::sum);
+            }
+        }
+
+        return distribution;
+    }
+
+    private List<ExamStatisticsDTO.ScoreRangeDTO> calculateScoreRanges(List<Integer> scores, int totalScore) {
+        List<ExamStatisticsDTO.ScoreRangeDTO> ranges = new ArrayList<>();
+        int rangeSize = totalScore / 10;
+
+        for (int i = 0; i < 10; i++) {
+            int start = i * rangeSize;
+            int end = (i == 9) ? totalScore : (i + 1) * rangeSize - 1;
+            String range = start + "-" + end;
+            long count = scores.stream().filter(s -> s >= start && s <= end).count();
+            double percentage = scores.isEmpty() ? 0 : Math.round((count * 100.0 / scores.size()) * 100.0) / 100.0;
+            ranges.add(new ExamStatisticsDTO.ScoreRangeDTO(range, (int) count, percentage));
+        }
+
+        return ranges;
+    }
+
+    private Map<String, Double> calculateGradeDistribution(List<Integer> scores, int totalScore) {
+        Map<String, Double> distribution = new java.util.HashMap<>();
+        distribution.put("A", 0D);
+        distribution.put("B", 0D);
+        distribution.put("C", 0D);
+        distribution.put("D", 0D);
+        distribution.put("F", 0D);
+
+        if (scores.isEmpty()) {
+            return distribution;
+        }
+
+        long aCount = scores.stream().filter(s -> s >= totalScore * 0.9).count();
+        long bCount = scores.stream().filter(s -> s >= totalScore * 0.8 && s < totalScore * 0.9).count();
+        long cCount = scores.stream().filter(s -> s >= totalScore * 0.7 && s < totalScore * 0.8).count();
+        long dCount = scores.stream().filter(s -> s >= totalScore * 0.6 && s < totalScore * 0.7).count();
+        long fCount = scores.stream().filter(s -> s < totalScore * 0.6).count();
+
+        distribution.put("A", Math.round((aCount * 100.0 / scores.size()) * 100.0) / 100.0);
+        distribution.put("B", Math.round((bCount * 100.0 / scores.size()) * 100.0) / 100.0);
+        distribution.put("C", Math.round((cCount * 100.0 / scores.size()) * 100.0) / 100.0);
+        distribution.put("D", Math.round((dCount * 100.0 / scores.size()) * 100.0) / 100.0);
+        distribution.put("F", Math.round((fCount * 100.0 / scores.size()) * 100.0) / 100.0);
+
+        return distribution;
     }
 
     public int gradeObjective(Long examId, Long teacherId) {

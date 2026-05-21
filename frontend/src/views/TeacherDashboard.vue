@@ -91,7 +91,60 @@
                 <span>最高/最低</span>
                 <strong>{{ statistics.maxScore || 0 }}/{{ statistics.minScore || 0 }}</strong>
               </div>
+              <div class="stat-item">
+                <span>中位数</span>
+                <strong>{{ Number(statistics.medianScore || 0).toFixed(1) }}</strong>
+              </div>
+              <div class="stat-item">
+                <span>标准差</span>
+                <strong>{{ Number(statistics.stdDev || 0).toFixed(2) }}</strong>
+              </div>
+              <div class="stat-item highlight">
+                <span>及格率</span>
+                <strong :class="statistics.passRate >= 60 ? 'text-success' : 'text-danger'">
+                  {{ Number(statistics.passRate || 0).toFixed(1) }}%
+                </strong>
+              </div>
+              <div class="stat-item">
+                <span>及格人数</span>
+                <strong class="text-success">{{ statistics.passCount || 0 }}</strong>
+              </div>
+              <div class="stat-item">
+                <span>不及格人数</span>
+                <strong class="text-danger">{{ statistics.failCount || 0 }}</strong>
+              </div>
             </div>
+            
+            <div class="chart-section" v-if="statistics.gradeDistribution">
+              <div class="section-header">
+                <span class="section-title-text">等级分布</span>
+              </div>
+              <div class="grade-distribution">
+                <div v-for="(percent, grade) in statistics.gradeDistribution" :key="grade" class="grade-item">
+                  <span class="grade-label">{{ grade }}</span>
+                  <div class="grade-bar-bg">
+                    <div class="grade-bar" :class="grade.toLowerCase()" :style="{ width: percent + '%' }"></div>
+                  </div>
+                  <span class="grade-percent">{{ percent.toFixed(1) }}%</span>
+                </div>
+              </div>
+            </div>
+            
+            <div class="chart-section" v-if="statistics.scoreRanges">
+              <div class="section-header">
+                <span class="section-title-text">分数段分布</span>
+              </div>
+              <div class="score-ranges">
+                <div v-for="range in statistics.scoreRanges" :key="range.range" class="score-range-item">
+                  <span class="range-label">{{ range.range }}</span>
+                  <div class="range-bar-bg">
+                    <div class="range-bar" :style="{ width: range.percentage + '%' }"></div>
+                  </div>
+                  <span class="range-count">{{ range.count }}人</span>
+                </div>
+              </div>
+            </div>
+            
             <el-button type="warning" :disabled="!selectedExam" @click="gradeObjective">
               批改非主观题
             </el-button>
@@ -587,5 +640,141 @@ onBeforeUnmount(() => {
 .inline-fields {
   display: flex;
   gap: 12px;
+}
+
+.stat-item.highlight {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-color: transparent;
+}
+
+.stat-item.highlight span {
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.stat-item.highlight strong {
+  color: #fff;
+}
+
+.text-success {
+  color: #67c23a;
+}
+
+.text-danger {
+  color: #f56c6c;
+}
+
+.chart-section {
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid #ebeef5;
+}
+
+.section-header {
+  margin-bottom: 12px;
+}
+
+.section-title-text {
+  font-size: 14px;
+  font-weight: 500;
+  color: #303133;
+}
+
+.grade-distribution {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.grade-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.grade-label {
+  width: 30px;
+  font-weight: 600;
+  font-size: 13px;
+}
+
+.grade-bar-bg {
+  flex: 1;
+  height: 16px;
+  background: #ebeef5;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.grade-bar {
+  height: 100%;
+  border-radius: 8px;
+  transition: width 0.5s ease;
+}
+
+.grade-bar.a {
+  background: linear-gradient(90deg, #52c41a, #73d13d);
+}
+
+.grade-bar.b {
+  background: linear-gradient(90deg, #1890ff, #40a9ff);
+}
+
+.grade-bar.c {
+  background: linear-gradient(90deg, #faad14, #ffc53d);
+}
+
+.grade-bar.d {
+  background: linear-gradient(90deg, #fa8c16, #ffa940);
+}
+
+.grade-bar.f {
+  background: linear-gradient(90deg, #f5222d, #ff4d4f);
+}
+
+.grade-percent {
+  width: 50px;
+  text-align: right;
+  font-size: 13px;
+  color: #666;
+}
+
+.score-ranges {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.score-range-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.range-label {
+  width: 60px;
+  font-size: 12px;
+  color: #666;
+}
+
+.range-bar-bg {
+  flex: 1;
+  height: 12px;
+  background: #f0f0f0;
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.range-bar {
+  height: 100%;
+  background: linear-gradient(90deg, #667eea, #764ba2);
+  border-radius: 6px;
+  transition: width 0.5s ease;
+}
+
+.range-count {
+  width: 50px;
+  text-align: right;
+  font-size: 12px;
+  color: #999;
 }
 </style>

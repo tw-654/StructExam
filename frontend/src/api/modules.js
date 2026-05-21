@@ -43,7 +43,7 @@ export const examApi = {
     return api.get('/exam/record/list')
   },
   getTeacherList(pageNum = 1, pageSize = 10) {
-    return api.get('/exam/teacher/list', { params: { pageNum, pageSize } })
+    return api.get('/exam/list', { params: { pageNum, pageSize } })
   },
   createTeacherExam(data) {
     return api.post('/exam/teacher', data)
