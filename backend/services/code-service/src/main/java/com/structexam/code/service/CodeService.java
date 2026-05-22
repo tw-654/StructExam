@@ -9,10 +9,12 @@ import com.structexam.code.distributed.dto.JudgeTaskResponse;
 import com.structexam.code.distributed.service.DistributedJudgeService;
 import com.structexam.code.mapper.CodeSubmissionMapper;
 import com.structexam.code.mapper.QuestionMapper;
+import com.structexam.code.mapper.QuestionTestCaseMapper;
 import com.structexam.common.dto.CodeSaveRequest;
 import com.structexam.common.dto.TestCase;
 import com.structexam.common.entity.CodeSubmission;
 import com.structexam.common.entity.Question;
+import com.structexam.common.entity.QuestionTestCase;
 import com.structexam.common.exception.BusinessException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.RedisTemplate;
@@ -38,6 +40,9 @@ public class CodeService {
 
     @Autowired
     private DistributedJudgeService distributedJudgeService;
+
+    @Autowired
+    private QuestionTestCaseMapper questionTestCaseMapper;
 
     @Autowired
     private ObjectMapper objectMapper;
@@ -115,7 +120,7 @@ public class CodeService {
         }
 
         Question question = questionMapper.selectById(questionId);
-        upsertSubmittedCode(userId, examId, questionId, code, language, submission);
+        CodeSubmission savedSubmission = upsertSubmittedCode(userId, examId, questionId, code, language, submission);
 
         DistributedJudgeSubmitRequest judgeRequest = new DistributedJudgeSubmitRequest();
         judgeRequest.setExamId(examId);
@@ -125,6 +130,11 @@ public class CodeService {
         judgeRequest.setTestCases(parseTestCases(question));
         judgeRequest.setMaxScore(question == null || question.getScore() == null ? 0 : question.getScore());
         judgeRequest.setPersistResult(true);
+        judgeRequest.setSubmissionId(savedSubmission.getId());
+        // triggerType 由调用方通过 request 传入，默认为 SUBMIT
+        if (request.getTriggerType() != null) {
+            judgeRequest.setTriggerType(request.getTriggerType());
+        }
 
         JudgeTaskResponse response = distributedJudgeService.submit(userId, judgeRequest);
         redisTemplate.delete(redisKey);
@@ -138,7 +148,9 @@ public class CodeService {
         return submitCode(userId, request);
     }
 
-    private void upsertSubmittedCode(Long userId, Long examId, Long questionId, String code, String language, CodeSubmission submission) {
+    /** 写入或更新 t_code_submission，返回包含 id 的实体（用于 JudgeRecord.submissionId 关联）。 */
+    private CodeSubmission upsertSubmittedCode(Long userId, Long examId, Long questionId,
+                                               String code, String language, CodeSubmission submission) {
         if (submission == null) {
             submission = new CodeSubmission();
             submission.setExamId(examId);
@@ -148,7 +160,7 @@ public class CodeService {
             submission.setLanguage(language);
             submission.setStatus("SUBMITTED");
             submission.setSubmitTime(LocalDateTime.now());
-            codeSubmissionMapper.insert(submission);
+            codeSubmissionMapper.insert(submission);   // MyBatis-Plus AUTO 策略回填 id
         } else {
             submission.setCodeContent(code);
             submission.setLanguage(language);
@@ -161,6 +173,7 @@ public class CodeService {
             submission.setMemoryUsedKb(null);
             codeSubmissionMapper.updateById(submission);
         }
+        return submission;
     }
 
     public List<JudgeTaskResponse> submitAllCode(Long userId, Long examId) {
@@ -185,6 +198,7 @@ public class CodeService {
             request.setQuestionId(submission.getQuestionId());
             request.setCode(hasNewCachedCode ? cachedCode.toString() : submission.getCodeContent());
             request.setLanguage(submission.getLanguage());
+            request.setTriggerType("SUBMIT_ALL");
             try {
                 responses.add(submitCode(userId, request));
             } catch (BusinessException ex) {
@@ -217,7 +231,28 @@ public class CodeService {
     }
 
     private List<TestCase> parseTestCases(Question question) {
-        if (question == null || !StringUtils.hasText(question.getOptions())) {
+        if (question == null) {
+            return List.of();
+        }
+
+        // 优先从 t_question_test_case 读取（新表），空则 fallback 解析 options JSON
+        List<QuestionTestCase> dbCases = questionTestCaseMapper.selectList(
+                new LambdaQueryWrapper<QuestionTestCase>()
+                        .eq(QuestionTestCase::getQuestionId, question.getId())
+                        .eq(QuestionTestCase::getStatus, 1)
+                        .orderByAsc(QuestionTestCase::getSortOrder));
+        if (!dbCases.isEmpty()) {
+            return dbCases.stream().map(tc -> {
+                TestCase t = new TestCase();
+                t.setInput(tc.getInputData());
+                t.setExpectedOutput(tc.getExpectedOutput());
+                t.setDescription(tc.getCaseName());
+                return t;
+            }).collect(java.util.stream.Collectors.toList());
+        }
+
+        // Fallback：解析 t_question.options 中的旧 JSON 格式
+        if (!StringUtils.hasText(question.getOptions())) {
             return List.of();
         }
         try {

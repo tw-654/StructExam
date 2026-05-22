@@ -90,6 +90,7 @@ services:
       MYSQL_HOST: mysql
       MYSQL_PASSWORD: structexam123
       REDIS_HOST: redis
+      TZ: Asia/Shanghai
     ports:
       - "8082:8082"
     depends_on:

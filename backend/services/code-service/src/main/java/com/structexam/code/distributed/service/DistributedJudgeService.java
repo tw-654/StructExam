@@ -5,6 +5,8 @@ import com.structexam.code.distributed.dto.DistributedJudgeSubmitRequest;
 import com.structexam.code.distributed.dto.ExamSubmitResponse;
 import com.structexam.code.distributed.dto.JudgeTask;
 import com.structexam.code.distributed.dto.JudgeTaskResponse;
+import com.structexam.code.service.JudgeRecordService;
+import com.structexam.common.entity.JudgeRecord;
 import com.structexam.common.exception.BusinessException;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
@@ -18,13 +20,16 @@ public class DistributedJudgeService {
     private final RedisDistributedLockService lockService;
     private final JudgeTaskQueueService queueService;
     private final DistributedJudgeProperties properties;
+    private final JudgeRecordService judgeRecordService;
 
     public DistributedJudgeService(RedisDistributedLockService lockService,
                                    JudgeTaskQueueService queueService,
-                                   DistributedJudgeProperties properties) {
+                                   DistributedJudgeProperties properties,
+                                   JudgeRecordService judgeRecordService) {
         this.lockService = lockService;
         this.queueService = queueService;
         this.properties = properties;
+        this.judgeRecordService = judgeRecordService;
     }
 
     public JudgeTaskResponse submit(Long userId, DistributedJudgeSubmitRequest request) {
@@ -43,11 +48,21 @@ public class DistributedJudgeService {
             task.setLanguage(StringUtils.hasText(request.getLanguage()) ? request.getLanguage() : "java");
             task.setTestCases(request.getTestCases());
             task.setMaxScore(request.getMaxScore());
+            task.setSubmissionId(request.getSubmissionId());
+            String triggerType = StringUtils.hasText(request.getTriggerType())
+                    ? request.getTriggerType() : "SUBMIT";
+            task.setTriggerType(triggerType);
             task.setPersistResult(request.isPersistResult());
+            // 仅官方提交（persistResult=true）才落库，纯"运行"不占存储
+            if (request.isPersistResult()) {
+                JudgeRecord pending = judgeRecordService.createPending(task, triggerType);
+                task.setJudgeRecordId(pending.getId());
+            }
             task.setSubmitTime(LocalDateTime.now());
             task.setRetryCount(0);
             task.setLockKey(lockKey);
             task.setLockToken(token);
+
             queueService.enqueue(task);
             return new JudgeTaskResponse(task.getTaskId(), "queued");
         } catch (RuntimeException ex) {

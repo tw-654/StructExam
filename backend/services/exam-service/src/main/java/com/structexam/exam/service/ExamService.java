@@ -24,6 +24,7 @@ import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
 import java.time.Duration;
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -64,7 +65,7 @@ public class ExamService {
         wrapper.orderByDesc(Exam::getCreateTime);
         Page<Exam> result = examMapper.selectPage(page, wrapper);
 
-        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime now = LocalDateTime.now(ZoneId.of("Asia/Shanghai"));
         for (Exam exam : result.getRecords()) {
             if (now.isBefore(exam.getStartTime())) {
                 exam.setStatus("PUBLISHED");
@@ -177,7 +178,7 @@ public class ExamService {
             throw new BusinessException(404, "Exam not found");
         }
 
-        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime now = LocalDateTime.now(ZoneId.of("Asia/Shanghai"));
         if (now.isBefore(exam.getStartTime())) {
             throw new BusinessException(400, "Exam has not started yet");
         }
@@ -222,7 +223,7 @@ public class ExamService {
             throw new BusinessException(404, "Exam not found");
         }
         ExamRecord record = getExamRecord(examId, userId);
-        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime now = LocalDateTime.now(ZoneId.of("Asia/Shanghai"));
         LocalDateTime deadline = null;
         long remainingSeconds = 0L;
         if (record != null && "IN_PROGRESS".equals(record.getStatus()) && record.getEnterTime() != null) {
@@ -266,7 +267,7 @@ public class ExamService {
             throw new BusinessException(400, "Exam has already been submitted");
         }
 
-        record.setSubmitTime(LocalDateTime.now());
+        record.setSubmitTime(LocalDateTime.now(ZoneId.of("Asia/Shanghai")));
         record.setStatus("SUBMITTED");
         examRecordMapper.updateById(record);
 
@@ -376,10 +377,10 @@ public class ExamService {
         dto.setGradedCount((int) records.stream().filter(r -> "GRADED".equals(r.getStatus())).count());
 
         List<Integer> scores = records.stream()
-                .map(ExamRecord::getScore)
-                .filter(score -> score != null)
-                .sorted()
-                .collect(Collectors.toList());
+            .map(ExamRecord::getScore)
+            .filter(score -> score != null)
+            .sorted()
+            .collect(Collectors.toList());
 
         int gradedCount = scores.size();
         int totalScore = exam.getTotalScore() != null ? exam.getTotalScore() : 100;
@@ -493,7 +494,6 @@ public class ExamService {
 
         return distribution;
     }
-
     public int gradeObjective(Long examId, Long teacherId) {
         getTeacherOwnedExam(examId, teacherId);
         List<Question> questions = getQuestions(examId);

@@ -1,10 +1,6 @@
-FROM eclipse-temurin:17-jdk-jammy
+FROM eclipse-temurin:17-jdk-alpine
 
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    python3 \
-    gcc \
-    g++ \
-    && rm -rf /var/lib/apt/lists/*
+RUN apk add --no-cache python3 gcc g++ musl-dev
 
 WORKDIR /app
 
