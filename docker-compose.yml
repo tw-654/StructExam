@@ -49,6 +49,8 @@ services:
       context: .
       dockerfile: Dockerfile.gateway
     container_name: structexam-gateway
+    cpus: '2'
+    mem_limit: 1g
     environment:
       NACOS_HOST: nacos
       MYSQL_HOST: mysql
@@ -66,6 +68,8 @@ services:
       context: .
       dockerfile: Dockerfile.user-service
     container_name: structexam-user-service
+    cpus: '1'
+    mem_limit: 512m
     environment:
       NACOS_HOST: nacos
       MYSQL_HOST: mysql
@@ -85,6 +89,8 @@ services:
       context: .
       dockerfile: Dockerfile.exam-service
     container_name: structexam-exam-service
+    cpus: '1'
+    mem_limit: 512m
     environment:
       NACOS_HOST: nacos
       MYSQL_HOST: mysql
@@ -104,6 +110,8 @@ services:
       context: .
       dockerfile: Dockerfile.code-service
     container_name: structexam-code-service
+    cpus: '1'
+    mem_limit: 512m
     environment:
       NACOS_HOST: nacos
       MYSQL_HOST: mysql
@@ -122,6 +130,8 @@ services:
       context: .
       dockerfile: Dockerfile.sandbox-node
     container_name: structexam-sandbox-node-1
+    cpus: '1'
+    mem_limit: 512m
     environment:
       NACOS_HOST: nacos
       SERVER_PORT: 8084
@@ -137,6 +147,8 @@ services:
       context: .
       dockerfile: Dockerfile.sandbox-node
     container_name: structexam-sandbox-node-2
+    cpus: '1'
+    mem_limit: 512m
     environment:
       NACOS_HOST: nacos
       SERVER_PORT: 8084
@@ -152,6 +164,8 @@ services:
       context: .
       dockerfile: Dockerfile.sandbox-node
     container_name: structexam-sandbox-node-3
+    cpus: '1'
+    mem_limit: 512m
     environment:
       NACOS_HOST: nacos
       SERVER_PORT: 8084
@@ -167,10 +181,51 @@ services:
       context: .
       dockerfile: Dockerfile.frontend
     container_name: structexam-frontend
+    cpus: '0.5'
+    mem_limit: 256m
     ports:
       - "80:80"
     depends_on:
       - gateway
 
+  playwright:
+    build:
+      context: .
+      dockerfile: Dockerfile.playwright
+    container_name: structexam-playwright
+    cpus: '4'
+    mem_limit: 4g
+    environment:
+      E2E_BASE_URL: http://frontend
+      E2E_STUDENT_USERNAME: jmeter_docker_01
+      E2E_STUDENT_PASSWORD: StructExam123
+      E2E_TEACHER_USERNAME: teacher01
+      E2E_TEACHER_PASSWORD: StructExam123
+      E2E_ADMIN_USERNAME: admin01
+      E2E_ADMIN_PASSWORD: StructExam123
+    volumes:
+      - ./tests:/app/tests
+      - test-results:/app/test-results
+    depends_on:
+      - frontend
+
+  jmeter:
+    image: structexam-jmeter:latest
+    container_name: structexam-jmeter
+    cpus: '4'
+    mem_limit: 4g
+    volumes:
+      - ./tests/jmeter:/test
+      - jmeter-results:/test/results
+    working_dir: /test
+    command: tail -f /dev/null
+    environment:
+      - JMETER_HOST=gateway
+      - JMETER_PORT=8080
+    depends_on:
+      - gateway
+
 volumes:
   mysql_data:
+  test-results:
+  jmeter-results:

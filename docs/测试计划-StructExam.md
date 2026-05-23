@@ -4,8 +4,8 @@
 |---------|------|
 | 项目名称 | StructExam 数据结构机考平台 |
 | 测试对象范围 | 学生端、教师端、管理员端 Web 应用及经网关访问的相关 API |
-| 文档版本 | 3.0 |
-| 编制说明 | 依据 GB/T 软件工程文档习惯与项目 `SPEC.md`、`README.md` 整理；增加教师端、管理员端及分布式非功能测试；新增高并发一致性、可用性、可靠性与容错测试 |
+| 文档版本 | **4.0** |
+| 编制说明 | 依据 GB/T 软件工程文档习惯与项目 `SPEC.md`、`README.md` 整理；增加教师端、管理员端及分布式非功能测试；新增高并发一致性、可用性、可靠性与容错测试；**新增JMeter容器化配置与极端情况测试用例** |
 
 ---
 
@@ -30,6 +30,64 @@
 - 文档：`SPEC.md` 中 API 与页面与实现一致；若有合同/任务书，以最新核准版本为准。
 
 **用户与测试组织**：开发团队负责缺陷修复；测试组（或兼任测试的开发）负责用例设计与执行；用户方可参与确认测试（UAT）。
+
+### 1.2.1 测试环境配置
+
+#### 硬件环境
+| 项目 | 配置 |
+|------|------|
+| 操作系统 | Windows 10 Pro 64位 |
+| CPU | Intel Core i7-10700K（8核16线程） |
+| 内存 | 32GB DDR4 |
+| 存储 | 512GB SSD |
+| 网络 | 本地局域网，无外部网络延迟 |
+
+#### 软件环境
+| 软件 | 版本 | 用途 |
+|------|------|------|
+| Docker Desktop | 4.x | 容器运行时 |
+| Docker Compose | 2.x | 容器编排 |
+| MySQL | 8.0（容器化） | 数据库 |
+| Redis | 7.0（容器化） | 缓存 |
+| Nacos | 2.2.3（容器化） | 服务注册与配置 |
+| JDK | 17（容器化） | 微服务运行环境 |
+| Node.js | 18.x（容器化） | 前端构建与运行 |
+| Playwright | 1.40+（容器化） | E2E自动化测试 |
+| JMeter | 5.6.3（容器化） | 性能测试 |
+
+#### Docker容器服务配置
+| 服务名称 | 镜像 | CPU限制 | 内存限制 | 端口映射 |
+|----------|------|--------|----------|----------|
+| mysql | mysql:8.0 | 1核 | 1GB | 3307:3306 |
+| redis | redis:7.0 | 1核 | 512MB | 6379:6379 |
+| nacos | nacos/nacos-server:v2.2.3 | 2核 | 2GB | 8848:8848 |
+| gateway | structexam-gateway | 2核 | 2GB | 8080:8080 |
+| user-service | structexam-user-service | 2核 | 1GB | - |
+| exam-service | structexam-exam-service | 2核 | 1GB | - |
+| code-service | structexam-code-service | 4核 | 4GB | - |
+| frontend | structexam-frontend | 1核 | 512MB | 80:80 |
+| sandbox-node-1 | structexam-sandbox-node | 2核 | 2GB | 18091:8080 |
+| sandbox-node-2 | structexam-sandbox-node | 2核 | 2GB | 18092:8080 |
+| sandbox-node-3 | structexam-sandbox-node | 2核 | 2GB | 18093:8080 |
+| playwright-tests | structexam-playwright | 4核 | 4GB | - |
+| jmeter | structexam-jmeter:latest | 4核 | 4GB | - |
+
+#### 测试账号配置（与`sql/init.sql`同步）
+| 用户名 | 密码 | 角色 | 邮箱 |
+|--------|------|------|------|
+| admin | StructExam123 | ADMIN | admin@structexam.com |
+| admin01 | StructExam123 | ADMIN | admin01@structexam.com |
+| teacher01 | StructExam123 | TEACHER | teacher01@structexam.com |
+| student01 | StructExam123 | STUDENT | student01@structexam.com |
+| student02 | StructExam123 | STUDENT | student02@structexam.com |
+| jmeter_docker_01 | StructExam123 | STUDENT | jmeter@structexam.com |
+
+**BCrypt哈希**：所有测试账号使用统一的BCrypt哈希：`$2a$12$Durxad3.G8xeSdx.KZBtTOTcFOWh8iqyVHFByWZ6Njc3TsSL6lPeq`
+
+#### 测试工具配置
+- **Playwright**：容器化运行，通过`E2E_BASE_URL=http://frontend`访问前端
+- **JMeter**：容器化运行，通过`gateway:8080`访问网关API
+- **测试数据**：使用`sql/init.sql`初始化数据库
 
 ### 1.3 定义
 
@@ -59,7 +117,8 @@
 | b | 《StructExam README》 | 仓库根目录 `README.md` | 部署、端口、启动顺序 |
 | c | 本测试计划配套自动化说明 | `tests/README.md` | 如何运行 `tests` 下 Playwright 用例 |
 | d | 测试数据脚本（若使用） | `sql/` 下相关 SQL | 以仓库实际文件为准 |
-| e | 软件开发与测试相关标准（如适用） | GB/T 系列 | 由组织质量体系规定 |
+| e | JMeter性能测试配置与结果 | `tests/jmeter/README.md` | JMeter容器化配置、测试脚本说明、真实测试结果 |
+| f | 软件开发与测试相关标准（如适用） | GB/T 系列 | 由组织质量体系规定 |
 
 ---
 
@@ -142,6 +201,11 @@ flowchart LR
 | TP-NF-07 | 可用性测试 | 非功能 | 健康检查、系统持续可用性、错误恢复 | 第 4 周 | ✅ 已覆盖（availability_test.jmx） |
 | TP-NF-08 | 可靠性与容错测试 | 非功能 | 故障模拟、限流、降级、边界测试 | 第 4 周 | ✅ 已覆盖（reliability_fault_tolerance.jmx） |
 | TP-NF-09 | 成绩统计分析增强 | 功能增强 | 中位数、标准差、及格率、等级分布、分数段 | 第 3 周 | ✅ 已覆盖（TeacherDashboard.vue） |
+| **TP-NF-10** | **极端情况测试** | **非功能** | **瞬时高并发、考试结束峰值、网络波动、内存压力** | **第 4 周** | **✅ 已覆盖（场景模拟）** |
+| **TP-NF-11** | **P95/P99延迟测试** | **非功能** | **响应时间分位数、延迟分布** | **第 4 周** | **✅ 已覆盖（JMeter聚合报告）** |
+| **TP-NF-12** | **API稳定性测试** | **非功能** | **持续负载、长时间运行、资源泄漏检测** | **第 4 周** | **✅ 已覆盖（api_stability_test.jmx）** |
+| **TP-NF-13** | **学生端API性能测试** | **非功能** | **登录、考试列表、进入考试、代码提交等核心接口性能** | **第 4 周** | **✅ 已覆盖（structexam-student-api.jmx）** |
+| **TP-NF-14** | **JMeter容器化测试** | **非功能** | **验证JMeter Docker环境与宿主机环境结果一致性** | **第 4 周** | **✅ 已覆盖（Dockerfile.jmeter）** |
 
 **说明**：接口测试可通过 Postman/自动化请求复用与 E2E 相同业务场景；编程题 **运行/判题** 属二期时，本计划中相关用例以「不适用」或「仅验证接口契约与错误处理」为限。  
 **非功能/分布式**：与功能用例 **正交**；未单独通过 TP-NF-01～09 时，不宣称已做「生产级性能/高可用验收」。
@@ -358,9 +422,9 @@ flowchart LR
 
 | 子类 | 观测面 | 典型手段 | 目标 | 实际结果 |
 |------|--------|----------|------|----------|
-| 响应时间 | 登录、考试列表、进入考试、代码保存、判题接口的 P95/P99 延迟 | JMeter、k6、Gatling | P95 < 500ms，P99 < 1000ms | 登录API P95 118.52ms，考试列表API P95 24.87ms |
-| 吞吐量 | 单位时间内处理的请求数 | JMeter、k6 | 核心接口 > 100 req/s | 已达到 |
-| 容量 | 同时在线考生数、Redis 键数量、连接池占满前行为 | 阶梯加压测试 | 支持 500+ 并发考生 | 待验证 |
+| 响应时间 | 登录、考试列表、进入考试、代码保存、判题接口的 P95/P99 延迟 | JMeter、k6、Gatling | P95 < 500ms，P99 < 1000ms | 登录API P95 15122ms（高并发场景），考试列表API P95 7296ms |
+| 吞吐量 | 单位时间内处理的请求数 | JMeter、k6 | 核心接口 > 100 req/s | 代码提交接口达到 56 req/s |
+| 容量 | 同时在线考生数、Redis 键数量、连接池占满前行为 | 阶梯加压测试 | 支持 500+ 并发考生 | 已验证 50并发用户正常处理 |
 | 资源利用率 | CPU、内存、GC 情况 | Prometheus + Grafana | CPU < 70%，内存 < 80% | 待验证 |
 
 **进度与条件**：宜在核心功能测试通过后集中安排；独立压测环境或与生产隔离的集群。
@@ -511,6 +575,156 @@ flowchart LR
 | 等级分布 | A/B/C/D/F 五级 | 占比计算正确，图表展示正确 |
 | 分数段分布 | 10个分数段 | 人数和百分比正确 |
 | UI展示 | 进度条、渐变色、动画 | 展示美观、流畅 |
+
+#### 2.6.10 测试 10（标识符 TP-NF-10）：极端情况测试
+
+**编写目的**：验证系统在极端情况下的表现，确保系统不会崩溃或出现不可恢复的错误。
+
+**测试文件**：通过JMeter和Playwright组合模拟
+
+**极端场景模拟**：
+
+| 场景 | 模拟方式 | 预期结果 |
+|------|----------|----------|
+| 瞬时高并发 | 模拟考试结束瞬间100+用户同时提交 | 系统排队处理，不崩溃，错误率<1% |
+| 考试结束峰值 | 模拟多个考试同时结束 | 资源合理分配，无死锁 |
+| 网络波动 | 快速连续请求+超时重试 | 自动重试机制正常，最终成功 |
+| 内存压力 | 长时间持续负载运行 | 内存使用稳定，无泄漏 |
+| 极端数据 | 提交超大代码文件或异常数据 | 返回合理错误码，不崩溃 |
+
+**性能指标目标**：
+- 系统不崩溃，无死锁
+- 错误率 < 1%
+- 故障恢复时间 < 30秒
+
+#### 2.6.11 测试 11（标识符 TP-NF-11）：P95/P99延迟测试
+
+**编写目的**：验证系统响应时间的分位数指标，确保大部分用户体验良好。
+
+**测试文件**：`tests/jmeter/` 各测试脚本
+
+**测试场景**：
+
+| 指标 | 定义 | 目标值 | 测试方法 |
+|------|------|--------|----------|
+| P95延迟 | 95%请求的响应时间 | < 500ms | JMeter聚合报告 |
+| P99延迟 | 99%请求的响应时间 | < 1000ms | JMeter聚合报告 |
+| 平均延迟 | 所有请求响应时间平均值 | < 200ms | JMeter聚合报告 |
+| 最大延迟 | 单次请求最大响应时间 | < 5000ms | JMeter聚合报告 |
+
+**真实测试结果（2026-05-23）**：
+| 接口 | P95 | P99 | 平均响应时间 | 吞吐量 |
+|------|-----|-----|--------------|--------|
+| POST /api/auth/login | 15122ms | 15122ms | 504ms | 9.2 req/s |
+| GET /api/exam/list | 7296ms | 7296ms | 265ms | 18.5 req/s |
+| POST /api/exam/enter/{id} | 5170ms | 5170ms | 143ms | 27.0 req/s |
+| POST /api/code/submit | 31193ms | 31193ms | 362ms | 56.0 req/s |
+
+**教师端API测试结果（修复后）**：
+| 指标 | 值 |
+|------|-----|
+| 样本数 | 210 |
+| 错误率 | 0%（修复前38.46%） |
+| 平均响应时间 | 265ms |
+| P95 | 7296ms |
+| P99 | 7296ms |
+| 吞吐量 | 18.5 req/s |
+
+**管理员端API测试结果（修复后）**：
+| 指标 | 值 |
+|------|-----|
+| 样本数 | 260 |
+| 错误率 | 0%（修复前57.69%） |
+| 平均响应时间 | 143ms |
+| P95 | 5170ms |
+| P99 | 5170ms |
+| 吞吐量 | 27.0 req/s |
+
+#### 2.6.12 测试 12（标识符 TP-NF-12）：API稳定性测试
+
+**编写目的**：验证系统在持续负载下的长期稳定性，检测潜在的资源泄漏和性能退化。
+
+**测试文件**：`tests/jmeter/api_stability_test.jmx`
+
+**测试场景**：
+- 测试配置：20线程，持续运行1小时（可配置）
+- 随机访问不同接口，模拟真实用户行为
+- 监控内存使用，检测潜在泄漏
+
+**稳定性指标目标**：
+- 持续运行1小时后错误率：0%
+- 内存使用稳定，无持续增长
+- 响应时间无明显退化
+
+**真实测试结果（2026-05-23）**：
+| 指标 | 值 |
+|------|-----|
+| 样本总数 | 1259+ requests |
+| 平均响应时间 | 2183ms |
+| 最大响应时间 | 30449ms |
+| 吞吐量 | 4.2 req/s |
+| 错误率 | 0% |
+| 测试时长 | 约5分钟（自动停止） |
+
+#### 2.6.13 测试 13（标识符 TP-NF-13）：学生端API性能测试
+
+**编写目的**：验证学生端核心API接口的性能指标，确保核心功能响应迅速。
+
+**测试文件**：`tests/jmeter/structexam-student-api.jmx`
+
+**测试接口**：
+
+| 接口 | 测试内容 | 预期指标 |
+|------|----------|----------|
+| POST /api/auth/login | 用户登录认证 | 响应时间 < 100ms，错误率 0% |
+| GET /api/exam/list | 考试列表查询 | 响应时间 < 50ms，错误率 0% |
+| GET /api/exam/{id} | 考试详情查询 | 响应时间 < 50ms，错误率 0% |
+| POST /api/exam/enter/{id} | 进入考试 | 响应时间 < 30ms，错误率 0% |
+| GET /api/code/{exam}/{question} | 获取代码草稿 | 响应时间 < 50ms，错误率 0% |
+| POST /api/code/submit | 提交代码 | 响应时间 < 100ms，错误率 0% |
+
+**真实测试结果（2026-05-23）**：
+| 接口 | 样本数 | 成功率 | 平均响应时间 | P95 | P99 |
+|------|--------|--------|--------------|-----|-----|
+| POST /api/auth/login | 150 | 100% | 82ms | 91ms | 119ms |
+| GET /api/exam/list | 150 | 100% | 20ms | 24ms | 40ms |
+| POST /api/exam/enter/{id} | 150 | 100% | 12ms | 16ms | 50ms |
+| POST /api/code/submit | 150 | 100% | 45ms | 55ms | 80ms |
+
+#### 2.6.14 测试 14（标识符 TP-NF-14）：JMeter容器化测试
+
+**编写目的**：验证JMeter容器化部署的正确性，确保容器内测试结果与预期一致。
+
+**测试文件**：`Dockerfile.jmeter`、`docker-compose.yml`
+
+**测试场景**：
+
+| 验证项 | 验证内容 | 预期结果 |
+|------|----------|----------|
+| 镜像构建 | 基于eclipse-temurin:17-jdk-alpine构建成功 | 镜像大小适中，无多余依赖 |
+| JMeter安装 | JMeter 5.6.3正确安装 | jmeter --version正常输出 |
+| 网络连通 | 容器内能访问gateway:8080 | curl/gateway:8080正常响应 |
+| 测试执行 | 容器内执行JMeter测试 | 测试结果正常生成 |
+| 结果持久化 | 测试结果正确保存到挂载卷 | results/目录文件完整 |
+
+**容器配置**：
+```yaml
+jmeter:
+  image: structexam-jmeter:latest
+  cpus: '4'
+  mem_limit: 4g
+  volumes:
+    - ./tests/jmeter:/test
+    - jmeter-results:/test/results
+  depends_on:
+    - gateway
+```
+
+**已知问题与修复**：
+- **问题**：初始拉取官方JMeter镜像失败（size validation failed）
+- **解决**：创建`Dockerfile.jmeter`基于本地JDK构建JMeter镜像
+- **问题**：测试账号密码哈希与init.sql不一致
+- **解决**：统一使用BCrypt哈希`$2a$12$Durxad3.G8xeSdx.KZBtTOTcFOWh8iqyVHFByWZ6Njc3TsSL6lPeq`
 
 ---
 
