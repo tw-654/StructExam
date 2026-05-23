@@ -163,8 +163,16 @@ public class JudgeRecordService {
 
         String statusName = result.getStatus() != null ? result.getStatus().name() : "FAILED";
         int maxScore = task.getMaxScore() != null ? task.getMaxScore() : 0;
-        // AC 得满分；WA/CE/RE 按累计用例分或 0
-        int finalScore = JudgeTaskStatus.AC.name().equals(statusName) ? maxScore : caseScore;
+        boolean allPassed = passedCount > 0 && testResults != null && passedCount == testResults.size();
+        int finalScore;
+        if (JudgeTaskStatus.AC.name().equals(statusName)) {
+            finalScore = maxScore;
+        } else if (allPassed) {
+            finalScore = maxScore;
+            statusName = JudgeTaskStatus.AC.name();
+        } else {
+            finalScore = caseScore;
+        }
 
         // 更新 JudgeRecord
         rec.setJudgeStatus(statusName);

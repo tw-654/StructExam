@@ -1,5 +1,8 @@
 <template>
   <div class="profile-container">
+    <el-button @click="$router.push('/home')" style="margin-bottom: 16px">
+      <el-icon><ArrowLeft /></el-icon> 返回
+    </el-button>
     <el-card>
       <template #header>
         <div class="card-header">
@@ -56,6 +59,7 @@
 
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
+import { ArrowLeft } from '@element-plus/icons-vue'
 import { useAuthStore } from '@/stores/auth'
 import { ElMessage } from 'element-plus'
 

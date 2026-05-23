@@ -1,5 +1,7 @@
 package com.structexam.code.judge;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.stereotype.Component;
 
 import java.util.Arrays;
@@ -24,6 +26,8 @@ import java.util.stream.Collectors;
  */
 @Component
 public class TestCaseJudgeService {
+
+    private static final ObjectMapper objectMapper = new ObjectMapper();
 
     /**
      * 对单个测试用例执行判定。
@@ -77,10 +81,20 @@ public class TestCaseJudgeService {
         }
 
         // 优先级 5：输出比较（AC / WA）
-        if (normActual.equals(normExpected)) {
+        if (outputsMatch(normActual, normExpected)) {
             return CaseJudgeResult.accepted(normActual, normExpected, timeUsedMs, memUsedKb);
         }
         return CaseJudgeResult.wrongAnswer(normActual, normExpected, timeUsedMs, memUsedKb);
+    }
+
+    private boolean outputsMatch(String actual, String expected) {
+        try {
+            JsonNode actualJson = objectMapper.readTree(actual);
+            JsonNode expectedJson = objectMapper.readTree(expected);
+            return actualJson.equals(expectedJson);
+        } catch (Exception e) {
+            return actual.equals(expected);
+        }
     }
 
     // ---------------------------------------------------------------- helpers

@@ -10,13 +10,23 @@ server:
 spring:
   application:
     name: user-service
+  http:
+    encoding:
+      charset: UTF-8
+      force: true
+      enabled: true
+  jackson:
+    default-property-inclusion: non_null
+    encoding:
+      json: UTF-8
   cloud:
     nacos:
       config:
         import-check:
           enabled: false
       discovery:
-        enabled: false
+        enabled: true
+        server-addr: nacos:8848
   datasource:
     url: jdbc:mysql://${MYSQL_HOST:localhost}:3306/structexam?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai
     username: root

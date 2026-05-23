@@ -708,6 +708,7 @@ onBeforeUnmount(() => {
   flex-direction: column;
   padding: 16px;
   gap: 16px;
+  overflow-y: auto;
 }
 
 .question-header,
@@ -829,6 +830,8 @@ onBeforeUnmount(() => {
   background: #fff;
   border-radius: 4px;
   overflow: hidden;
+  max-height: 400px;
+  overflow-y: auto;
 }
 
 .judge-header {

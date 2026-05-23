@@ -3,6 +3,8 @@ package com.structexam.code.service;
 import com.structexam.common.dto.CodeExecuteRequest;
 import com.structexam.common.dto.CodeExecuteResponse;
 import com.structexam.common.dto.TestCase;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -21,6 +23,7 @@ import java.util.concurrent.*;
 public class CodeSandboxService {
 
     private static final Logger logger = LoggerFactory.getLogger(CodeSandboxService.class);
+    private static final ObjectMapper objectMapper = new ObjectMapper();
 
     @Value("${sandbox.timeout:10}")
     private long defaultTimeout;
@@ -377,7 +380,7 @@ public class CodeSandboxService {
         try {
             String output = executeJavaClass(workingDir, className, testCase.getInput(), timeout);
             result.setActualOutput(output);
-            result.setPassed(trimOutput(output).equals(trimOutput(testCase.getExpectedOutput())));
+            result.setPassed(compareOutputs(output, testCase.getExpectedOutput()));
         } catch (Exception e) {
             result.setActualOutput("Error: " + e.getMessage());
             result.setPassed(false);
@@ -396,7 +399,7 @@ public class CodeSandboxService {
         try {
             String output = executeCppProgram(workingDir, testCase.getInput(), timeout);
             result.setActualOutput(output);
-            result.setPassed(trimOutput(output).equals(trimOutput(testCase.getExpectedOutput())));
+            result.setPassed(compareOutputs(output, testCase.getExpectedOutput()));
         } catch (Exception e) {
             result.setActualOutput("Error: " + e.getMessage());
             result.setPassed(false);
@@ -415,7 +418,7 @@ public class CodeSandboxService {
         try {
             String output = executePythonScript(workingDir, filename, testCase.getInput(), timeout);
             result.setActualOutput(output);
-            result.setPassed(trimOutput(output).equals(trimOutput(testCase.getExpectedOutput())));
+            result.setPassed(compareOutputs(output, testCase.getExpectedOutput()));
         } catch (Exception e) {
             result.setActualOutput("Error: " + e.getMessage());
             result.setPassed(false);
@@ -537,6 +540,18 @@ public class CodeSandboxService {
             return "";
         }
         return output.trim().replaceAll("\\s+", " ").replaceAll("\\r\\n", "\n").replaceAll("\\r", "\n");
+    }
+
+    private boolean compareOutputs(String actual, String expected) {
+        try {
+            // 首先尝试作为 JSON 比较（忽略空格和格式差异）
+            JsonNode actualJson = objectMapper.readTree(actual);
+            JsonNode expectedJson = objectMapper.readTree(expected);
+            return actualJson.equals(expectedJson);
+        } catch (Exception e) {
+            // 如果不是有效 JSON，回退到普通字符串比较
+            return trimOutput(actual).equals(trimOutput(expected));
+        }
     }
 
     private void cleanupSandbox(Path sandboxPath) {

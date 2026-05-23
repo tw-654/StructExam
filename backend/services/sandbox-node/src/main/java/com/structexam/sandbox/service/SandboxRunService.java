@@ -1,5 +1,7 @@
 package com.structexam.sandbox.service;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.structexam.common.dto.CodeExecuteRequest;
 import com.structexam.common.dto.CodeExecuteResponse;
 import com.structexam.common.dto.TestCase;
@@ -24,6 +26,8 @@ import java.util.regex.Pattern;
 
 @Service
 public class SandboxRunService {
+
+    private static final ObjectMapper objectMapper = new ObjectMapper();
 
     @Value("${sandbox.tempDir:/tmp/structexam-sandbox}")
     private String tempDir;
@@ -187,7 +191,13 @@ public class SandboxRunService {
         if (expected == null) {
             return true;
         }
-        return normalizeOutput(actual).equals(normalizeOutput(expected));
+        try {
+            JsonNode actualJson = objectMapper.readTree(actual);
+            JsonNode expectedJson = objectMapper.readTree(expected);
+            return actualJson.equals(expectedJson);
+        } catch (Exception e) {
+            return normalizeOutput(actual).equals(normalizeOutput(expected));
+        }
     }
 
     private String normalizeOutput(String output) {

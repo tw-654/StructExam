@@ -7,7 +7,9 @@ const RETRY_DELAY = 1000
 
 const api = axios.create({
   baseURL: '/api',
-  timeout: 30000
+  timeout: 30000,
+  responseType: 'json',
+  responseEncoding: 'utf8'
 })
 
 api.interceptors.request.use(

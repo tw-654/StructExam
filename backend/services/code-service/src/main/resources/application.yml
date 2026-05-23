@@ -8,8 +8,19 @@ server:
       enabled: true
 
 spring:
+  main:
+    allow-bean-definition-overriding: true
   application:
     name: code-service
+  http:
+    encoding:
+      charset: UTF-8
+      force: true
+      enabled: true
+  jackson:
+    default-property-inclusion: non_null
+    encoding:
+      json: UTF-8
   cloud:
     nacos:
       config:
@@ -18,7 +29,6 @@ spring:
       discovery:
         enabled: true
         server-addr: ${NACOS_HOST:nacos}:8848
-        register-enabled: false
   datasource:
     url: jdbc:mysql://${MYSQL_HOST:localhost}:3306/structexam?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai
     username: root
@@ -49,4 +59,4 @@ sandbox:
 
 distributed:
   judge:
-    local-sandbox-node-enabled: false
+    local-sandbox-node-enabled: true

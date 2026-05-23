@@ -202,12 +202,17 @@ public class DistributedJudgeScheduler {
             }
         }
         submission.setStatus("GRADED");
-        submission.setJudgeStatus(result.getStatus() == null ? null : result.getStatus().name());
+        int maxScore = task.getMaxScore() == null ? 0 : task.getMaxScore();
+        List<CodeExecuteResponse.TestResult> testResults = result.getTestCaseResults();
+        int passedCount = testResults != null ? (int) testResults.stream().filter(CodeExecuteResponse.TestResult::isPassed).count() : 0;
+        int totalCount = testResults != null ? testResults.size() : 0;
+        boolean allPassed = passedCount > 0 && passedCount == totalCount;
+        boolean isAC = result.getStatus() == JudgeTaskStatus.AC || allPassed;
+        submission.setJudgeStatus(isAC ? JudgeTaskStatus.AC.name() : (result.getStatus() == null ? null : result.getStatus().name()));
         submission.setTimeUsedMs(result.getTimeUsedMs());
         submission.setMemoryUsedKb(result.getMemoryUsedKb());
         submission.setJudgeTime(result.getFinishedTime() == null ? LocalDateTime.now() : result.getFinishedTime());
-        int maxScore = task.getMaxScore() == null ? 0 : task.getMaxScore();
-        submission.setScore(result.getStatus() == JudgeTaskStatus.AC ? maxScore : 0);
+        submission.setScore(isAC ? maxScore : 0);
         submission.setJudgeMessage(result.getError());
 
         if (submission.getId() == null) {

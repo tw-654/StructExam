@@ -3,6 +3,7 @@ package com.structexam.exam;
 import org.mybatis.spring.annotation.MapperScan;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.cloud.client.discovery.EnableDiscoveryClient;
 import org.springframework.cloud.client.discovery.simple.SimpleDiscoveryClientAutoConfiguration;
 import org.springframework.context.annotation.ComponentScan;
 
@@ -11,6 +12,7 @@ import org.springframework.context.annotation.ComponentScan;
 })
 @MapperScan("com.structexam.exam.mapper")
 @ComponentScan(basePackages = {"com.structexam.exam", "com.structexam.common"})
+@EnableDiscoveryClient
 public class ExamServiceApplication {
     public static void main(String[] args) {
         SpringApplication.run(ExamServiceApplication.class, args);
