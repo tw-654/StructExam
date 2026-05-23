@@ -6,6 +6,9 @@ public class CodeSaveRequest {
     private String code;
     private String language;
 
+    /** RUN / SUBMIT / SUBMIT_ALL；业务内部传递，前端无需传 */
+    private String triggerType;
+
     public Long getExamId() {
         return examId;
     }
@@ -36,5 +39,13 @@ public class CodeSaveRequest {
 
     public void setLanguage(String language) {
         this.language = language;
+    }
+
+    public String getTriggerType() {
+        return triggerType;
+    }
+
+    public void setTriggerType(String triggerType) {
+        this.triggerType = triggerType;
     }
 }

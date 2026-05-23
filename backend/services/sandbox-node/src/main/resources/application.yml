@@ -1,0 +1,25 @@
+server:
+  port: ${SERVER_PORT:8084}
+  address: 0.0.0.0
+
+spring:
+  application:
+    name: sandbox-node
+  cloud:
+    nacos:
+      discovery:
+        enabled: true
+        server-addr: ${NACOS_HOST:nacos}:8848
+        metadata:
+          maxConcurrency: ${SANDBOX_MAX_CONCURRENCY:4}
+          version: "1.0"
+          runPath: "/sandbox/run"
+          wsPath: "/ws/sandbox"
+      config:
+        import-check:
+          enabled: false
+
+sandbox:
+  tempDir: ${SANDBOX_TEMP_DIR:/tmp/structexam-sandbox}
+  timeout: ${SANDBOX_TIMEOUT_SECONDS:5}
+  maxMemory: ${SANDBOX_MAX_MEMORY_MB:256}

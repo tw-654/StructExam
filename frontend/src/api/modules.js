@@ -14,9 +14,7 @@ export const authApi = {
     return api.get('/auth/userinfo')
   },
   updatePassword(oldPassword, newPassword) {
-    return api.put('/auth/password', null, {
-      params: { oldPassword, newPassword }
-    })
+    return api.put('/auth/password', null, { params: { oldPassword, newPassword } })
   }
 }
 
@@ -36,8 +34,35 @@ export const examApi = {
   getRecord(id) {
     return api.get(`/exam/record/${id}`)
   },
+  getRuntime(id) {
+    return api.get(`/exam/runtime/${id}`)
+  },
   getRecordList() {
     return api.get('/exam/record/list')
+  },
+  getTeacherList(pageNum = 1, pageSize = 10) {
+    return api.get('/exam/teacher/list', { params: { pageNum, pageSize } })
+  },
+  createTeacherExam(data) {
+    return api.post('/exam/teacher', data)
+  },
+  updateTeacherExam(id, data) {
+    return api.put(`/exam/teacher/${id}`, data)
+  },
+  deleteTeacherExam(id) {
+    return api.delete(`/exam/teacher/${id}`)
+  },
+  publishTeacherExam(id) {
+    return api.post(`/exam/teacher/${id}/publish`)
+  },
+  gradeObjective(id) {
+    return api.post(`/exam/teacher/${id}/grade-objective`)
+  },
+  getStatistics(id) {
+    return api.get(`/exam/teacher/${id}/statistics`)
+  },
+  getStudentScores(id) {
+    return api.get(`/exam/teacher/${id}/records`)
   }
 }
 
@@ -47,6 +72,15 @@ export const questionApi = {
   },
   getDetail(examId, questionId) {
     return api.get(`/question/${examId}/${questionId}`)
+  },
+  createTeacherQuestion(data) {
+    return api.post('/question/teacher', data)
+  },
+  updateTeacherQuestion(id, data) {
+    return api.put(`/question/teacher/${id}`, data)
+  },
+  deleteTeacherQuestion(id) {
+    return api.delete(`/question/teacher/${id}`)
   }
 }
 
@@ -62,5 +96,68 @@ export const codeApi = {
   },
   submitAll(examId) {
     return api.post(`/code/submitAll/${examId}`)
+  },
+  run(data) {
+    return api.post('/code/run', data)
+  },
+  submitDistributed(data) {
+    return api.post('/code/distributed/submit', data)
+  },
+  getDistributedResult(taskId) {
+    return api.get(`/code/distributed/result/${taskId}`)
+  }
+}
+
+export const distributedAdminApi = {
+  snapshot() {
+    return api.get('/code/distributed/admin/snapshot')
+  },
+  submitTestTask(data) {
+    return api.post('/code/distributed/admin/test-task', data)
+  },
+  startLoadTest(data) {
+    return api.post('/code/distributed/admin/load-test', data)
+  }
+}
+
+export const sandboxApi = {
+  execute(data) {
+    return api.post('/sandbox/execute', data)
+  },
+  run(data) {
+    return api.post('/sandbox/run', data)
+  }
+}
+
+export const testCaseApi = {
+  listPublic(questionId) {
+    return api.get(`/question/test-case/public/${questionId}`)
+  },
+  listForTeacher(questionId) {
+    return api.get(`/question/test-case/teacher/${questionId}`)
+  },
+  create(data) {
+    return api.post('/question/test-case/teacher', data)
+  },
+  update(id, data) {
+    return api.put(`/question/test-case/teacher/${id}`, data)
+  },
+  remove(id) {
+    return api.delete(`/question/test-case/teacher/${id}`)
+  },
+  batchSave(questionId, items) {
+    return api.put(`/question/test-case/teacher/batch/${questionId}`, items)
+  }
+}
+
+export const judgeRecordApi = {
+  getLatest(examId, questionId) {
+    return api.get('/code/judge/latest', { params: { examId, questionId } })
+  },
+  getByTaskId(taskId) {
+    return api.get(`/code/judge/record/${taskId}`)
+  },
+  getBySubmission(submissionId) {
+    return api.get(`/code/judge/teacher/submission/${submissionId}`)
   }
 }

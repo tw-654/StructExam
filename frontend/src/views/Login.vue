@@ -67,15 +67,27 @@ const handleLogin = async () => {
   await loginFormRef.value.validate(async (valid) => {
     if (valid) {
       loading.value = true
-      try {
-        await authStore.login(loginForm)
-        ElMessage.success('Login successful')
-        router.push('/home')
-      } catch (error) {
-        console.error('Login failed:', error)
-      } finally {
-        loading.value = false
+      const maxRetries = 2
+      let attempts = 0
+      let success = false
+      
+      while (attempts <= maxRetries && !success) {
+        try {
+          await authStore.login(loginForm)
+          ElMessage.success('Login successful')
+          router.push('/home')
+          success = true
+        } catch (error) {
+          attempts++
+          console.error(`Login attempt ${attempts} failed:`, error)
+          
+          if (attempts <= maxRetries) {
+            await new Promise(resolve => setTimeout(resolve, 1000 * attempts))
+          }
+        }
       }
+      
+      loading.value = false
     }
   })
 }

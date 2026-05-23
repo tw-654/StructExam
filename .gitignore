@@ -49,3 +49,35 @@ logs/
 *.zip
 *.tar.gz
 *.rar
+
+backend/services/code-service/sandbox-temp/
+test/
+backend/sandbox-temp/
+
+# Third-party tools and packages
+nacos/
+tools/
+
+# Database and cache files
+dump.rdb
+*.sql
+
+# Windows specific
+EventLog.dll
+*.dll
+
+# Release notes and documentation
+00-RELEASENOTES
+README.txt
+RELEASENOTES.txt
+SPEC.md
+
+# Docker related
+*.pid
+*.seed
+docker-compose.override.yml
+
+# Logs and temp
+tests/
+*.log
+logs/

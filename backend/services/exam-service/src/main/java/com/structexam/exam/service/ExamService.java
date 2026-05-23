@@ -3,11 +3,18 @@ package com.structexam.exam.service;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.structexam.common.entity.Exam;
+import com.structexam.common.entity.CodeSubmission;
 import com.structexam.common.entity.ExamRecord;
 import com.structexam.common.entity.Question;
 import com.structexam.common.exception.BusinessException;
 import com.structexam.exam.dto.ExamDetailDTO;
+import com.structexam.exam.dto.ExamRuntimeDTO;
+import com.structexam.exam.dto.ExamSaveRequest;
+import com.structexam.exam.dto.ExamStatisticsDTO;
 import com.structexam.exam.dto.QuestionDTO;
+import com.structexam.exam.dto.QuestionSaveRequest;
+import com.structexam.exam.dto.StudentScoreDTO;
+import com.structexam.exam.mapper.CodeSubmissionMapper;
 import com.structexam.exam.mapper.ExamMapper;
 import com.structexam.exam.mapper.ExamRecordMapper;
 import com.structexam.exam.mapper.QuestionMapper;
@@ -16,8 +23,12 @@ import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
+import java.time.Duration;
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
@@ -32,6 +43,9 @@ public class ExamService {
 
     @Autowired
     private ExamRecordMapper examRecordMapper;
+
+    @Autowired
+    private CodeSubmissionMapper codeSubmissionMapper;
 
     @Autowired
     private RedisTemplate<String, Object> redisTemplate;
@@ -51,7 +65,7 @@ public class ExamService {
         wrapper.orderByDesc(Exam::getCreateTime);
         Page<Exam> result = examMapper.selectPage(page, wrapper);
 
-        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime now = LocalDateTime.now(ZoneId.of("Asia/Shanghai"));
         for (Exam exam : result.getRecords()) {
             if (now.isBefore(exam.getStartTime())) {
                 exam.setStatus("PUBLISHED");
@@ -63,6 +77,53 @@ public class ExamService {
         }
 
         return result;
+    }
+
+    public Page<Exam> getTeacherExamList(int pageNum, int pageSize, Long teacherId) {
+        Page<Exam> page = new Page<>(pageNum, pageSize);
+        LambdaQueryWrapper<Exam> wrapper = new LambdaQueryWrapper<Exam>()
+                .orderByDesc(Exam::getCreateTime);
+        if (teacherId != null) {
+            wrapper.eq(Exam::getCreatorId, teacherId);
+        }
+        return examMapper.selectPage(page, wrapper);
+    }
+
+    public Exam createExam(ExamSaveRequest request, Long teacherId) {
+        validateExamRequest(request);
+        Exam exam = new Exam();
+        applyExamRequest(exam, request);
+        exam.setCreatorId(teacherId);
+        exam.setStatus(request.getStatus() == null ? "DRAFT" : request.getStatus());
+        examMapper.insert(exam);
+        return exam;
+    }
+
+    public Exam updateExam(Long examId, ExamSaveRequest request, Long teacherId) {
+        validateExamRequest(request);
+        Exam exam = getTeacherOwnedExam(examId, teacherId);
+        applyExamRequest(exam, request);
+        if (request.getStatus() != null) {
+            exam.setStatus(request.getStatus());
+        }
+        examMapper.updateById(exam);
+        return exam;
+    }
+
+    public void deleteExam(Long examId, Long teacherId) {
+        getTeacherOwnedExam(examId, teacherId);
+        examMapper.deleteById(examId);
+    }
+
+    public Exam publishExam(Long examId, Long teacherId) {
+        Exam exam = getTeacherOwnedExam(examId, teacherId);
+        List<Question> questions = getQuestions(examId);
+        if (questions.isEmpty()) {
+            throw new BusinessException(400, "发布前至少需要添加一道题目");
+        }
+        exam.setStatus("PUBLISHED");
+        examMapper.updateById(exam);
+        return exam;
     }
 
     public ExamDetailDTO getExamDetail(Long examId, Long userId) {
@@ -117,7 +178,7 @@ public class ExamService {
             throw new BusinessException(404, "Exam not found");
         }
 
-        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime now = LocalDateTime.now(ZoneId.of("Asia/Shanghai"));
         if (now.isBefore(exam.getStartTime())) {
             throw new BusinessException(400, "Exam has not started yet");
         }
@@ -142,8 +203,11 @@ public class ExamService {
         } else if ("SUBMITTED".equals(record.getStatus()) || "GRADED".equals(record.getStatus())) {
             throw new BusinessException(400, "Exam has already been submitted");
         } else {
-            record.setEnterTime(now);
+            if (record.getEnterTime() == null) {
+                record.setEnterTime(now);
+            }
             record.setStatus("IN_PROGRESS");
+            record.setIpAddress(ipAddress);
             examRecordMapper.updateById(record);
         }
 
@@ -151,6 +215,30 @@ public class ExamService {
         redisTemplate.opsForHash().put("exam:status:" + examId + ":" + userId, "recordId", record.getId().toString());
 
         return record;
+    }
+
+    public ExamRuntimeDTO getExamRuntime(Long examId, Long userId) {
+        Exam exam = examMapper.selectById(examId);
+        if (exam == null) {
+            throw new BusinessException(404, "Exam not found");
+        }
+        ExamRecord record = getExamRecord(examId, userId);
+        LocalDateTime now = LocalDateTime.now(ZoneId.of("Asia/Shanghai"));
+        LocalDateTime deadline = null;
+        long remainingSeconds = 0L;
+        if (record != null && "IN_PROGRESS".equals(record.getStatus()) && record.getEnterTime() != null) {
+            LocalDateTime personalDeadline = record.getEnterTime().plusMinutes(exam.getDuration());
+            deadline = personalDeadline.isBefore(exam.getEndTime()) ? personalDeadline : exam.getEndTime();
+            remainingSeconds = Math.max(0L, Duration.between(now, deadline).getSeconds());
+        }
+
+        ExamRuntimeDTO dto = new ExamRuntimeDTO();
+        dto.setExamId(examId);
+        dto.setServerTime(now);
+        dto.setDeadlineTime(deadline);
+        dto.setRemainingSeconds(remainingSeconds);
+        dto.setRecord(record);
+        return dto;
     }
 
     public ExamRecord getExamRecord(Long examId, Long userId) {
@@ -179,7 +267,7 @@ public class ExamService {
             throw new BusinessException(400, "Exam has already been submitted");
         }
 
-        record.setSubmitTime(LocalDateTime.now());
+        record.setSubmitTime(LocalDateTime.now(ZoneId.of("Asia/Shanghai")));
         record.setStatus("SUBMITTED");
         examRecordMapper.updateById(record);
 
@@ -200,5 +288,312 @@ public class ExamService {
 
     public Exam getExamById(Long examId) {
         return examMapper.selectById(examId);
+    }
+
+    public Question createQuestion(QuestionSaveRequest request, Long teacherId) {
+        validateQuestionRequest(request);
+        getTeacherOwnedExam(request.getExamId(), teacherId);
+        Question question = new Question();
+        applyQuestionRequest(question, request);
+        questionMapper.insert(question);
+        return question;
+    }
+
+    public Question updateQuestion(Long questionId, QuestionSaveRequest request, Long teacherId) {
+        Question question = questionMapper.selectById(questionId);
+        if (question == null) {
+            throw new BusinessException(404, "Question not found");
+        }
+        Long examId = request.getExamId() == null ? question.getExamId() : request.getExamId();
+        getTeacherOwnedExam(examId, teacherId);
+        validateQuestionRequest(request);
+        request.setExamId(examId);
+        applyQuestionRequest(question, request);
+        questionMapper.updateById(question);
+        return question;
+    }
+
+    public void deleteQuestion(Long questionId, Long teacherId) {
+        Question question = questionMapper.selectById(questionId);
+        if (question == null) {
+            return;
+        }
+        getTeacherOwnedExam(question.getExamId(), teacherId);
+        questionMapper.deleteById(questionId);
+    }
+
+    public List<StudentScoreDTO> getStudentScores(Long examId, Long teacherId) {
+        getTeacherOwnedExam(examId, teacherId);
+        List<ExamRecord> records = examRecordMapper.selectList(new LambdaQueryWrapper<ExamRecord>()
+                .eq(ExamRecord::getExamId, examId)
+                .orderByDesc(ExamRecord::getSubmitTime));
+        Map<Long, List<CodeSubmission>> submissionsByUser = codeSubmissionMapper.selectList(new LambdaQueryWrapper<CodeSubmission>()
+                        .eq(CodeSubmission::getExamId, examId))
+                .stream()
+                .collect(Collectors.groupingBy(CodeSubmission::getUserId));
+
+        return records.stream().map(record -> {
+            List<CodeSubmission> submissions = submissionsByUser.getOrDefault(record.getUserId(), List.of());
+            StudentScoreDTO dto = new StudentScoreDTO();
+            dto.setRecordId(record.getId());
+            dto.setExamId(record.getExamId());
+            dto.setUserId(record.getUserId());
+            dto.setEnterTime(record.getEnterTime());
+            dto.setSubmitTime(record.getSubmitTime());
+            dto.setScore(record.getScore());
+            dto.setStatus(record.getStatus());
+            dto.setSubmittedQuestionCount((int) submissions.stream()
+                    .filter(s -> "SUBMITTED".equals(s.getStatus()) || "GRADED".equals(s.getStatus()))
+                    .count());
+            dto.setJudgedQuestionCount((int) submissions.stream()
+                    .filter(s -> s.getJudgeStatus() != null)
+                    .count());
+            dto.setAcceptedQuestionCount((int) submissions.stream()
+                    .filter(s -> "AC".equals(s.getJudgeStatus()))
+                    .count());
+            submissions.stream()
+                    .filter(s -> s.getJudgeTime() != null)
+                    .max((left, right) -> left.getJudgeTime().compareTo(right.getJudgeTime()))
+                    .ifPresent(latest -> {
+                        dto.setLatestJudgeStatus(latest.getJudgeStatus());
+                        dto.setLatestJudgeTimeUsedMs(latest.getTimeUsedMs());
+                        dto.setLatestJudgeTime(latest.getJudgeTime());
+                    });
+            return dto;
+        }).collect(Collectors.toList());
+    }
+
+    public ExamStatisticsDTO getExamStatistics(Long examId, Long teacherId) {
+        Exam exam = getTeacherOwnedExam(examId, teacherId);
+        List<ExamRecord> records = examRecordMapper.selectList(new LambdaQueryWrapper<ExamRecord>()
+                .eq(ExamRecord::getExamId, examId));
+
+        ExamStatisticsDTO dto = new ExamStatisticsDTO();
+        dto.setExamId(examId);
+        dto.setTitle(exam.getTitle());
+        dto.setTotalStudents(records.size());
+        dto.setInProgressCount((int) records.stream().filter(r -> "IN_PROGRESS".equals(r.getStatus())).count());
+        dto.setSubmittedCount((int) records.stream().filter(r -> "SUBMITTED".equals(r.getStatus())).count());
+        dto.setGradedCount((int) records.stream().filter(r -> "GRADED".equals(r.getStatus())).count());
+
+        List<Integer> scores = records.stream()
+            .map(ExamRecord::getScore)
+            .filter(score -> score != null)
+            .sorted()
+            .collect(Collectors.toList());
+
+        int gradedCount = scores.size();
+        int totalScore = exam.getTotalScore() != null ? exam.getTotalScore() : 100;
+        int passScore = (int) (totalScore * 0.6);
+
+        if (!scores.isEmpty()) {
+            double average = scores.stream().mapToInt(Integer::intValue).average().orElse(0D);
+            dto.setAverageScore(Math.round(average * 100.0) / 100.0);
+            dto.setMaxScore(scores.stream().mapToInt(Integer::intValue).max().orElse(0));
+            dto.setMinScore(scores.stream().mapToInt(Integer::intValue).min().orElse(0));
+
+            if (gradedCount % 2 == 0) {
+                dto.setMedianScore((scores.get(gradedCount / 2 - 1) + scores.get(gradedCount / 2)) / 2.0);
+            } else {
+                dto.setMedianScore(scores.get(gradedCount / 2).doubleValue());
+            }
+
+            double variance = scores.stream()
+                    .mapToDouble(score -> Math.pow(score - average, 2))
+                    .average()
+                    .orElse(0);
+            dto.setStdDev(Math.round(Math.sqrt(variance) * 100.0) / 100.0);
+
+            long passCount = scores.stream().filter(s -> s >= passScore).count();
+            long failCount = gradedCount - passCount;
+            dto.setPassCount((int) passCount);
+            dto.setFailCount((int) failCount);
+            dto.setPassRate(gradedCount > 0 ? Math.round((passCount * 100.0 / gradedCount) * 100.0) / 100.0 : 0D);
+
+            dto.setScoreDistribution(calculateScoreDistribution(scores));
+            dto.setScoreRanges(calculateScoreRanges(scores, totalScore));
+            dto.setGradeDistribution(calculateGradeDistribution(scores, totalScore));
+        } else {
+            dto.setAverageScore(0D);
+            dto.setMaxScore(0);
+            dto.setMinScore(0);
+            dto.setMedianScore(0D);
+            dto.setStdDev(0D);
+            dto.setPassCount(0);
+            dto.setFailCount(0);
+            dto.setPassRate(0D);
+        }
+
+        return dto;
+    }
+
+    private Map<String, Integer> calculateScoreDistribution(List<Integer> scores) {
+        Map<String, Integer> distribution = new java.util.HashMap<>();
+        distribution.put("0-29", 0);
+        distribution.put("30-59", 0);
+        distribution.put("60-74", 0);
+        distribution.put("75-89", 0);
+        distribution.put("90-100", 0);
+
+        for (Integer score : scores) {
+            if (score >= 0 && score <= 29) {
+                distribution.merge("0-29", 1, Integer::sum);
+            } else if (score >= 30 && score <= 59) {
+                distribution.merge("30-59", 1, Integer::sum);
+            } else if (score >= 60 && score <= 74) {
+                distribution.merge("60-74", 1, Integer::sum);
+            } else if (score >= 75 && score <= 89) {
+                distribution.merge("75-89", 1, Integer::sum);
+            } else if (score >= 90 && score <= 100) {
+                distribution.merge("90-100", 1, Integer::sum);
+            }
+        }
+
+        return distribution;
+    }
+
+    private List<ExamStatisticsDTO.ScoreRangeDTO> calculateScoreRanges(List<Integer> scores, int totalScore) {
+        List<ExamStatisticsDTO.ScoreRangeDTO> ranges = new ArrayList<>();
+        int rangeSize = totalScore / 10;
+
+        for (int i = 0; i < 10; i++) {
+            int start = i * rangeSize;
+            int end = (i == 9) ? totalScore : (i + 1) * rangeSize - 1;
+            String range = start + "-" + end;
+            long count = scores.stream().filter(s -> s >= start && s <= end).count();
+            double percentage = scores.isEmpty() ? 0 : Math.round((count * 100.0 / scores.size()) * 100.0) / 100.0;
+            ranges.add(new ExamStatisticsDTO.ScoreRangeDTO(range, (int) count, percentage));
+        }
+
+        return ranges;
+    }
+
+    private Map<String, Double> calculateGradeDistribution(List<Integer> scores, int totalScore) {
+        Map<String, Double> distribution = new java.util.HashMap<>();
+        distribution.put("A", 0D);
+        distribution.put("B", 0D);
+        distribution.put("C", 0D);
+        distribution.put("D", 0D);
+        distribution.put("F", 0D);
+
+        if (scores.isEmpty()) {
+            return distribution;
+        }
+
+        long aCount = scores.stream().filter(s -> s >= totalScore * 0.9).count();
+        long bCount = scores.stream().filter(s -> s >= totalScore * 0.8 && s < totalScore * 0.9).count();
+        long cCount = scores.stream().filter(s -> s >= totalScore * 0.7 && s < totalScore * 0.8).count();
+        long dCount = scores.stream().filter(s -> s >= totalScore * 0.6 && s < totalScore * 0.7).count();
+        long fCount = scores.stream().filter(s -> s < totalScore * 0.6).count();
+
+        distribution.put("A", Math.round((aCount * 100.0 / scores.size()) * 100.0) / 100.0);
+        distribution.put("B", Math.round((bCount * 100.0 / scores.size()) * 100.0) / 100.0);
+        distribution.put("C", Math.round((cCount * 100.0 / scores.size()) * 100.0) / 100.0);
+        distribution.put("D", Math.round((dCount * 100.0 / scores.size()) * 100.0) / 100.0);
+        distribution.put("F", Math.round((fCount * 100.0 / scores.size()) * 100.0) / 100.0);
+
+        return distribution;
+    }
+    public int gradeObjective(Long examId, Long teacherId) {
+        getTeacherOwnedExam(examId, teacherId);
+        List<Question> questions = getQuestions(examId);
+        Map<Long, Integer> scoreByQuestion = questions.stream()
+                .collect(Collectors.toMap(Question::getId, q -> q.getScore() == null ? 0 : q.getScore()));
+        Set<Long> questionIds = scoreByQuestion.keySet();
+        if (questionIds.isEmpty()) {
+            return 0;
+        }
+
+        List<ExamRecord> records = examRecordMapper.selectList(new LambdaQueryWrapper<ExamRecord>()
+                .eq(ExamRecord::getExamId, examId)
+                .in(ExamRecord::getStatus, List.of("SUBMITTED", "GRADED")));
+        List<CodeSubmission> submissions = codeSubmissionMapper.selectList(new LambdaQueryWrapper<CodeSubmission>()
+                .eq(CodeSubmission::getExamId, examId)
+                .in(CodeSubmission::getStatus, List.of("SUBMITTED", "GRADED")));
+        Map<Long, Set<Long>> acceptedQuestionsByUser = submissions.stream()
+                .filter(s -> questionIds.contains(s.getQuestionId()))
+                .filter(s -> "AC".equals(s.getJudgeStatus()) || s.getJudgeStatus() == null)
+                .collect(Collectors.groupingBy(
+                        CodeSubmission::getUserId,
+                        Collectors.mapping(CodeSubmission::getQuestionId, Collectors.toSet())
+                ));
+
+        for (ExamRecord record : records) {
+            int score = acceptedQuestionsByUser.getOrDefault(record.getUserId(), Set.of())
+                    .stream()
+                    .mapToInt(questionId -> scoreByQuestion.getOrDefault(questionId, 0))
+                    .sum();
+            record.setScore(score);
+            record.setStatus("GRADED");
+            examRecordMapper.updateById(record);
+        }
+        return records.size();
+    }
+
+    private Exam getTeacherOwnedExam(Long examId, Long teacherId) {
+        Exam exam = examMapper.selectById(examId);
+        if (exam == null) {
+            throw new BusinessException(404, "Exam not found");
+        }
+        if (teacherId != null && !teacherId.equals(exam.getCreatorId())) {
+            throw new BusinessException(403, "No permission to manage this exam");
+        }
+        return exam;
+    }
+
+    private void applyExamRequest(Exam exam, ExamSaveRequest request) {
+        exam.setTitle(request.getTitle());
+        exam.setDescription(request.getDescription());
+        exam.setDuration(request.getDuration());
+        exam.setTotalScore(request.getTotalScore());
+        exam.setStartTime(request.getStartTime());
+        exam.setEndTime(request.getEndTime());
+    }
+
+    private void validateExamRequest(ExamSaveRequest request) {
+        if (request == null || request.getTitle() == null || request.getTitle().isBlank()) {
+            throw new BusinessException(400, "考试名称不能为空");
+        }
+        if (request.getDuration() == null || request.getDuration() <= 0) {
+            throw new BusinessException(400, "考试时长必须大于0");
+        }
+        if (request.getTotalScore() == null || request.getTotalScore() <= 0) {
+            throw new BusinessException(400, "总分必须大于0");
+        }
+        if (request.getStartTime() == null || request.getEndTime() == null || !request.getEndTime().isAfter(request.getStartTime())) {
+            throw new BusinessException(400, "考试开始和结束时间不合法");
+        }
+    }
+
+    private void applyQuestionRequest(Question question, QuestionSaveRequest request) {
+        question.setExamId(request.getExamId());
+        question.setType(request.getType());
+        question.setTitle(request.getTitle());
+        question.setContent(request.getContent());
+        question.setOptions(normalizeOptions(request));
+        question.setScore(request.getScore());
+        question.setSortOrder(request.getSortOrder() == null ? 0 : request.getSortOrder());
+    }
+
+    private void validateQuestionRequest(QuestionSaveRequest request) {
+        if (request == null || request.getExamId() == null) {
+            throw new BusinessException(400, "examId is required");
+        }
+        if (request.getType() == null || request.getType().isBlank()) {
+            throw new BusinessException(400, "题目类型不能为空");
+        }
+        if (request.getTitle() == null || request.getTitle().isBlank()) {
+            throw new BusinessException(400, "题目标题不能为空");
+        }
+        if (request.getScore() == null || request.getScore() <= 0) {
+            throw new BusinessException(400, "题目分值必须大于0");
+        }
+    }
+
+    private String normalizeOptions(QuestionSaveRequest request) {
+        if (request.getOptions() == null || request.getOptions().isBlank()) {
+            return "PROGRAMMING".equals(request.getType()) ? null : "[]";
+        }
+        return request.getOptions();
     }
 }

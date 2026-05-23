@@ -1,5 +1,8 @@
 <template>
   <div class="profile-container">
+    <el-button @click="$router.push('/home')" style="margin-bottom: 16px">
+      <el-icon><ArrowLeft /></el-icon> 返回
+    </el-button>
     <el-card>
       <template #header>
         <div class="card-header">
@@ -13,8 +16,8 @@
           <el-descriptions-item label="真实姓名">{{ userInfo.realName }}</el-descriptions-item>
           <el-descriptions-item label="邮箱">{{ userInfo.email || '-' }}</el-descriptions-item>
           <el-descriptions-item label="角色">
-            <el-tag :type="userInfo.role === 'TEACHER' ? 'success' : 'primary'">
-              {{ userInfo.role === 'TEACHER' ? '教师' : '学生' }}
+            <el-tag :type="roleType(userInfo.role)">
+              {{ roleText(userInfo.role) }}
             </el-tag>
           </el-descriptions-item>
           <el-descriptions-item label="账号状态">
@@ -56,6 +59,7 @@
 
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
+import { ArrowLeft } from '@element-plus/icons-vue'
 import { useAuthStore } from '@/stores/auth'
 import { ElMessage } from 'element-plus'
 
@@ -107,6 +111,18 @@ const formatDate = (dateStr) => {
   if (!dateStr) return '-'
   return new Date(dateStr).toLocaleString('zh-CN')
 }
+
+const roleText = (role) => ({
+  ADMIN: '管理员',
+  TEACHER: '教师',
+  STUDENT: '学生'
+}[role] || role)
+
+const roleType = (role) => ({
+  ADMIN: 'danger',
+  TEACHER: 'success',
+  STUDENT: 'primary'
+}[role] || 'info')
 
 const handleUpdatePassword = async () => {
   if (!passwordFormRef.value) return

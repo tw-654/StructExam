@@ -1,0 +1,107 @@
+2026/05/19-01:08:25.001308 a98c RocksDB version: 7.7.3
+2026/05/19-01:08:25.001403 a98c Git sha eb9a80fe1f18017b4d7f4084e8f2554f12234822
+2026/05/19-01:08:25.001442 a98c Compile date 2022-10-24 17:17:55
+2026/05/19-01:08:25.001488 a98c DB SUMMARY
+2026/05/19-01:08:25.001505 a98c DB Session ID:  IGKXTP29IFRO447B1YTN
+2026/05/19-01:08:25.002356 a98c CURRENT file:  CURRENT
+2026/05/19-01:08:25.002376 a98c IDENTITY file:  IDENTITY
+2026/05/19-01:08:25.002447 a98c MANIFEST file:  MANIFEST-000005 size: 119 Bytes
+2026/05/19-01:08:25.002466 a98c SST files in D:\StructExam\nacos\data\protocol\raft\naming_persistent_service_v2\log dir, Total Num: 0, files: 
+2026/05/19-01:08:25.002486 a98c Write Ahead Log file in D:\StructExam\nacos\data\protocol\raft\naming_persistent_service_v2\log: 
+2026/05/19-01:08:25.002685 a98c                         Options.error_if_exists: 0
+2026/05/19-01:08:25.002703 a98c                       Options.create_if_missing: 1
+2026/05/19-01:08:25.002708 a98c                         Options.paranoid_checks: 1
+2026/05/19-01:08:25.002713 a98c             Options.flush_verify_memtable_count: 1
+2026/05/19-01:08:25.002718 a98c                               Options.track_and_verify_wals_in_manifest: 0
+2026/05/19-01:08:25.002722 a98c        Options.verify_sst_unique_id_in_manifest: 1
+2026/05/19-01:08:25.002727 a98c                                     Options.env: 000001CED8610BA0
+2026/05/19-01:08:25.002733 a98c                                      Options.fs: WinFS
+2026/05/19-01:08:25.002737 a98c                                Options.info_log: 000001CED6545250
+2026/05/19-01:08:25.002742 a98c                Options.max_file_opening_threads: 16
+2026/05/19-01:08:25.002746 a98c                              Options.statistics: 000001CEDB89E7A0
+2026/05/19-01:08:25.002751 a98c                               Options.use_fsync: 0
+2026/05/19-01:08:25.002756 a98c                       Options.max_log_file_size: 0
+2026/05/19-01:08:25.002760 a98c                  Options.max_manifest_file_size: 1073741824
+2026/05/19-01:08:25.002765 a98c                   Options.log_file_time_to_roll: 0
+2026/05/19-01:08:25.002769 a98c                       Options.keep_log_file_num: 100
+2026/05/19-01:08:25.002774 a98c                    Options.recycle_log_file_num: 0
+2026/05/19-01:08:25.002778 a98c                         Options.allow_fallocate: 1
+2026/05/19-01:08:25.002783 a98c                        Options.allow_mmap_reads: 0
+2026/05/19-01:08:25.002787 a98c                       Options.allow_mmap_writes: 0
+2026/05/19-01:08:25.002792 a98c                        Options.use_direct_reads: 0
+2026/05/19-01:08:25.002796 a98c                        Options.use_direct_io_for_flush_and_compaction: 0
+2026/05/19-01:08:25.002801 a98c          Options.create_missing_column_families: 1
+2026/05/19-01:08:25.002806 a98c                              Options.db_log_dir: 
+2026/05/19-01:08:25.002810 a98c                                 Options.wal_dir: 
+2026/05/19-01:08:25.002814 a98c                Options.table_cache_numshardbits: 6
+2026/05/19-01:08:25.002819 a98c                         Options.WAL_ttl_seconds: 0
+2026/05/19-01:08:25.002824 a98c                       Options.WAL_size_limit_MB: 0
+2026/05/19-01:08:25.002828 a98c                        Options.max_write_batch_group_size_bytes: 1048576
+2026/05/19-01:08:25.002833 a98c             Options.manifest_preallocation_size: 4194304
+2026/05/19-01:08:25.002837 a98c                     Options.is_fd_close_on_exec: 1
+2026/05/19-01:08:25.002842 a98c                   Options.advise_random_on_open: 1
+2026/05/19-01:08:25.002846 a98c                    Options.db_write_buffer_size: 0
+2026/05/19-01:08:25.002851 a98c                    Options.write_buffer_manager: 000001CED860F700
+2026/05/19-01:08:25.002855 a98c         Options.access_hint_on_compaction_start: 1
+2026/05/19-01:08:25.002860 a98c           Options.random_access_max_buffer_size: 1048576
+2026/05/19-01:08:25.002864 a98c                      Options.use_adaptive_mutex: 0
+2026/05/19-01:08:25.002869 a98c                            Options.rate_limiter: 0000000000000000
+2026/05/19-01:08:25.002916 a98c     Options.sst_file_manager.rate_bytes_per_sec: 0
+2026/05/19-01:08:25.002924 a98c                       Options.wal_recovery_mode: 2
+2026/05/19-01:08:25.002928 a98c                  Options.enable_thread_tracking: 0
+2026/05/19-01:08:25.002933 a98c                  Options.enable_pipelined_write: 0
+2026/05/19-01:08:25.002938 a98c                  Options.unordered_write: 0
+2026/05/19-01:08:25.002942 a98c         Options.allow_concurrent_memtable_write: 1
+2026/05/19-01:08:25.002947 a98c      Options.enable_write_thread_adaptive_yield: 1
+2026/05/19-01:08:25.002951 a98c             Options.write_thread_max_yield_usec: 100
+2026/05/19-01:08:25.002956 a98c            Options.write_thread_slow_yield_usec: 3
+2026/05/19-01:08:25.002962 a98c                               Options.row_cache: None
+2026/05/19-01:08:25.002966 a98c                              Options.wal_filter: None
+2026/05/19-01:08:25.002971 a98c             Options.avoid_flush_during_recovery: 0
+2026/05/19-01:08:25.002976 a98c             Options.allow_ingest_behind: 0
+2026/05/19-01:08:25.002980 a98c             Options.two_write_queues: 0
+2026/05/19-01:08:25.002985 a98c             Options.manual_wal_flush: 0
+2026/05/19-01:08:25.002989 a98c             Options.wal_compression: 0
+2026/05/19-01:08:25.002994 a98c             Options.atomic_flush: 0
+2026/05/19-01:08:25.002998 a98c             Options.avoid_unnecessary_blocking_io: 0
+2026/05/19-01:08:25.003002 a98c                 Options.persist_stats_to_disk: 0
+2026/05/19-01:08:25.003007 a98c                 Options.write_dbid_to_manifest: 0
+2026/05/19-01:08:25.003011 a98c                 Options.log_readahead_size: 0
+2026/05/19-01:08:25.003016 a98c                 Options.file_checksum_gen_factory: Unknown
+2026/05/19-01:08:25.003041 a98c                 Options.best_efforts_recovery: 0
+2026/05/19-01:08:25.003046 a98c                Options.max_bgerror_resume_count: 2147483647
+2026/05/19-01:08:25.003051 a98c            Options.bgerror_resume_retry_interval: 1000000
+2026/05/19-01:08:25.003055 a98c             Options.allow_data_in_errors: 0
+2026/05/19-01:08:25.003060 a98c             Options.db_host_id: __hostname__
+2026/05/19-01:08:25.003064 a98c             Options.enforce_single_del_contracts: true
+2026/05/19-01:08:25.003069 a98c             Options.max_background_jobs: 2
+2026/05/19-01:08:25.003073 a98c             Options.max_background_compactions: 4
+2026/05/19-01:08:25.003078 a98c             Options.max_subcompactions: 1
+2026/05/19-01:08:25.003082 a98c             Options.avoid_flush_during_shutdown: 0
+2026/05/19-01:08:25.003087 a98c           Options.writable_file_max_buffer_size: 1048576
+2026/05/19-01:08:25.003091 a98c             Options.delayed_write_rate : 16777216
+2026/05/19-01:08:25.003096 a98c             Options.max_total_wal_size: 1073741824
+2026/05/19-01:08:25.003101 a98c             Options.delete_obsolete_files_period_micros: 21600000000
+2026/05/19-01:08:25.003105 a98c                   Options.stats_dump_period_sec: 600
+2026/05/19-01:08:25.003110 a98c                 Options.stats_persist_period_sec: 600
+2026/05/19-01:08:25.003114 a98c                 Options.stats_history_buffer_size: 1048576
+2026/05/19-01:08:25.003119 a98c                          Options.max_open_files: -1
+2026/05/19-01:08:25.003124 a98c                          Options.bytes_per_sync: 0
+2026/05/19-01:08:25.003128 a98c                      Options.wal_bytes_per_sync: 0
+2026/05/19-01:08:25.003133 a98c                   Options.strict_bytes_per_sync: 0
+2026/05/19-01:08:25.003137 a98c       Options.compaction_readahead_size: 0
+2026/05/19-01:08:25.003142 a98c                  Options.max_background_flushes: 1
+2026/05/19-01:08:25.003146 a98c Compression algorithms supported:
+2026/05/19-01:08:25.003160 a98c 	kZSTD supported: 1
+2026/05/19-01:08:25.003165 a98c 	kSnappyCompression supported: 1
+2026/05/19-01:08:25.003170 a98c 	kBZip2Compression supported: 0
+2026/05/19-01:08:25.003174 a98c 	kZlibCompression supported: 1
+2026/05/19-01:08:25.003178 a98c 	kLZ4Compression supported: 1
+2026/05/19-01:08:25.003183 a98c 	kXpressCompression supported: 0
+2026/05/19-01:08:25.003217 a98c 	kLZ4HCCompression supported: 1
+2026/05/19-01:08:25.003220 a98c 	kZSTDNotFinalCompression supported: 1
+2026/05/19-01:08:25.003228 a98c Fast CRC32 supported: Not supported on x86
+2026/05/19-01:08:25.003231 a98c DMutex implementation: std::mutex
+2026/05/19-01:08:25.003881 a98c [WARN] [db\db_impl\db_impl_open.cc:2074] DB::Open() failed: Corruption: CURRENT file corrupted
+2026/05/19-01:08:25.003909 a98c [db\db_impl\db_impl.cc:497] Shutdown: canceling all background work
+2026/05/19-01:08:25.003989 a98c [db\db_impl\db_impl.cc:704] Shutdown complete

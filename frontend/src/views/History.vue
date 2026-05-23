@@ -1,6 +1,9 @@
 <template>
   <div class="history-container">
     <div class="title-bar">
+      <el-button @click="$router.push('/home')" style="margin-right: 16px">
+        <el-icon><ArrowLeft /></el-icon> 返回
+      </el-button>
       <h2>考试记录</h2>
     </div>
 
@@ -35,6 +38,7 @@
 
 <script setup>
 import { ref, onMounted } from 'vue'
+import { ArrowLeft } from '@element-plus/icons-vue'
 import { examApi } from '@/api/modules'
 
 const loading = ref(false)
