@@ -2,7 +2,7 @@
 <jmeterTestPlan version="1.2" properties="5.0" jmeter="5.6">
   <hashTree>
     <TestPlan guiclass="TestPlanGui" testclass="TestPlan" testname="StructExam 学生端API性能测试" enabled="true">
-      <stringProp name="TestPlan.comments">学生端API性能测试 - 按场景分离测试。改进：1)添加setUp创建独立考试 2)分离快速轮询接口 3)添加业务断言 4)避免混合场景导致指标失真</stringProp>
+      <stringProp name="TestPlan.comments">重构版：学生端API性能测试 - 按场景分离测试。改进：1)添加setUp创建独立考试 2)分离快速轮询接口 3)添加业务断言 4)避免混合场景导致指标失真。重要：整体P95会被快速轮询请求拉低，每个场景应单独评估；建议使用各场景独立的JTL文件而非整体结果</stringProp>
       <boolProp name="TestPlan.functional_mode">false</boolProp>
       <boolProp name="TestPlan.serialize_threadgroups">false</boolProp>
       <elementProp name="TestPlan.user_defined_variables" elementType="Arguments" guiclass="ArgumentsPanel" testclass="Arguments" testname="User Defined Variables" enabled="true">
@@ -94,7 +94,7 @@
               <collectionProp name="Arguments.arguments">
                 <elementProp name="" elementType="HTTPArgument">
                   <boolProp name="HTTPArgument.always_encode">false</boolProp>
-                  <stringProp name="Argument.value">{"title":"Submit Test Exam ${__time(yyyyMMddHHmmss)}_${exam_create_count}","description":"Exam for submit testing","duration":120,"startTime":"${__time(yyyy-MM-dd HH:mm:ss)}","endTime":"${__timeShift(yyyy-MM-dd HH:mm:ss,P2D)}","courseId":1,"status":"ACTIVE","visibility":"PUBLIC"}</stringProp>
+                  <stringProp name="Argument.value">{"title":"Submit Test Exam ${__time(yyyyMMddHHmmss)}_${exam_create_count}","description":"Exam for submit testing","duration":120,"startTime":"${__time(yyyy-MM-dd HH:mm:ss)}","endTime":"${__timeShift(yyyy-MM-dd HH:mm:ss,,P2D,)}","courseId":1,"status":"ACTIVE","visibility":"PUBLIC"}</stringProp>
                   <stringProp name="Argument.metadata">=</stringProp>
                 </elementProp>
               </collectionProp>
@@ -318,7 +318,7 @@ vars.put("exam_create_count", String.valueOf(nextCount));</stringProp>
           <stringProp name="filename">results/read_only_30t_report.jtl</stringProp>
         </ResultCollector>
         <hashTree/>
-      </ThreadGroup>
+      </hashTree>
       <ThreadGroup guiclass="ThreadGroupGui" testclass="ThreadGroup" testname="场景3: 代码提交专项 (30线程)" enabled="true">
         <stringProp name="ThreadGroup.on_sample_error">continue</stringProp>
         <elementProp name="ThreadGroup.main_controller" elementType="LoopController" guiclass="LoopControlPanel" testclass="LoopController" testname="Loop Controller" enabled="true">
@@ -456,8 +456,8 @@ vars.put("THREAD_EXAM_ID", examId);</stringProp>
           <stringProp name="filename">results/submit_only_30t_report.jtl</stringProp>
         </ResultCollector>
         <hashTree/>
-      </ThreadGroup>
-      <ResultCollector guiclass="SummaryReport" testclass="ResultCollector" testname="Overall Summary" enabled="true">
+      </hashTree>
+      <ResultCollector guiclass="SummaryReport" testclass="ResultCollector" testname="Overall Summary [已禁用-请使用分场景JTL]" enabled="false">
         <stringProp name="filename">results/structexam_overall.jtl</stringProp>
       </ResultCollector>
       <hashTree/>

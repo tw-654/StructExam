@@ -17,7 +17,7 @@ import java.nio.charset.StandardCharsets;
 public class WebConfig implements WebMvcConfigurer {
 
     @Bean
-    public FilterRegistrationBean<CharacterEncodingFilter> characterEncodingFilter() {
+    public FilterRegistrationBean<CharacterEncodingFilter> customCharacterEncodingFilter() {
         CharacterEncodingFilter filter = new CharacterEncodingFilter();
         filter.setEncoding("UTF-8");
         filter.setForceEncoding(true);

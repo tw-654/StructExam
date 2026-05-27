@@ -17,6 +17,12 @@ public class QuestionController {
     @Autowired
     private ExamService examService;
 
+    @GetMapping("/list/{examId}")
+    public ApiResponse<List<Question>> getQuestionsByExamId(@PathVariable Long examId) {
+        List<Question> questions = examService.getQuestions(examId);
+        return ApiResponse.success(questions);
+    }
+
     @GetMapping("/{examId}")
     public ApiResponse<List<Question>> getQuestions(@PathVariable Long examId) {
         List<Question> questions = examService.getQuestions(examId);
