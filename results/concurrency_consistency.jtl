@@ -1,0 +1,91 @@
+timeStamp,elapsed,label,responseCode,responseMessage,threadName,dataType,success,failureMessage,bytes,sentBytes,grpThreads,allThreads,URL,Latency,IdleTime,Connect
+1779798703644,2489,POST /api/auth/login,200,,并发一致性测试 1-1,text,true,,499,288,16,16,http://gateway:8080/api/auth/login,2488,0,21
+1779798706168,6,POST /api/exam/enter/{id},200,,并发一致性测试 1-1,text,true,,209,422,16,16,http://gateway:8080/api/exam/enter/1,6,0,1
+1779798706175,5,POST /api/code/submit (并发提交),200,,并发一致性测试 1-1,text,false,代码提交失败,274,565,16,16,http://gateway:8080/api/code/submit,5,0,0
+1779798703719,6903,POST /api/auth/login,200,,并发一致性测试 1-2,text,true,,499,288,29,29,http://gateway:8080/api/auth/login,6903,0,0
+1779798710623,6,POST /api/exam/enter/{id},200,,并发一致性测试 1-2,text,true,,209,422,29,29,http://gateway:8080/api/exam/enter/1,6,0,1
+1779798710629,4,POST /api/code/submit (并发提交),200,,并发一致性测试 1-2,text,false,代码提交失败,274,565,29,29,http://gateway:8080/api/code/submit,4,0,1
+1779798703885,7437,POST /api/auth/login,200,,并发一致性测试 1-3,text,true,,501,288,28,28,http://gateway:8080/api/auth/login,7437,0,0
+1779798711323,6,POST /api/exam/enter/{id},200,,并发一致性测试 1-3,text,true,,209,423,28,28,http://gateway:8080/api/exam/enter/1,6,0,2
+1779798711330,3,POST /api/code/submit (并发提交),200,,并发一致性测试 1-3,text,false,代码提交失败,274,566,28,28,http://gateway:8080/api/code/submit,3,0,0
+1779798704051,11970,POST /api/auth/login,200,,并发一致性测试 1-4,text,true,,501,288,27,27,http://gateway:8080/api/auth/login,11970,0,0
+1779798716022,7,POST /api/exam/enter/{id},200,,并发一致性测试 1-4,text,true,,209,423,27,27,http://gateway:8080/api/exam/enter/1,7,0,3
+1779798716030,4,POST /api/code/submit (并发提交),200,,并发一致性测试 1-4,text,false,代码提交失败,274,566,27,27,http://gateway:8080/api/code/submit,4,0,0
+1779798706708,10817,POST /api/auth/login,200,,并发一致性测试 1-20,text,true,,505,289,26,26,http://gateway:8080/api/auth/login,10813,0,1
+1779798717526,7,POST /api/exam/enter/{id},200,,并发一致性测试 1-20,text,true,,209,425,26,26,http://gateway:8080/api/exam/enter/1,6,0,1
+1779798717533,4,POST /api/code/submit (并发提交),200,,并发一致性测试 1-20,text,false,代码提交失败,274,570,26,26,http://gateway:8080/api/code/submit,4,0,1
+1779798704218,13899,POST /api/auth/login,200,,并发一致性测试 1-5,text,true,,501,288,25,25,http://gateway:8080/api/auth/login,13899,0,2
+1779798718118,8,POST /api/exam/enter/{id},200,,并发一致性测试 1-5,text,true,,209,423,25,25,http://gateway:8080/api/exam/enter/1,8,0,1
+1779798718127,7,POST /api/code/submit (并发提交),200,,并发一致性测试 1-5,text,false,代码提交失败,274,566,25,25,http://gateway:8080/api/code/submit,7,0,0
+1779798704882,14335,POST /api/auth/login,200,,并发一致性测试 1-9,text,true,,501,288,24,24,http://gateway:8080/api/auth/login,14335,0,1
+1779798705047,14170,POST /api/auth/login,200,,并发一致性测试 1-10,text,true,,505,289,24,24,http://gateway:8080/api/auth/login,14170,0,1
+1779798719217,12,POST /api/exam/enter/{id},200,,并发一致性测试 1-10,text,true,,209,425,24,24,http://gateway:8080/api/exam/enter/1,12,0,1
+1779798719217,12,POST /api/exam/enter/{id},200,,并发一致性测试 1-9,text,true,,209,423,24,24,http://gateway:8080/api/exam/enter/1,12,0,1
+1779798719230,4,POST /api/code/submit (并发提交),200,,并发一致性测试 1-10,text,false,代码提交失败,274,570,24,24,http://gateway:8080/api/code/submit,3,0,0
+1779798719230,4,POST /api/code/submit (并发提交),200,,并发一致性测试 1-9,text,false,代码提交失败,274,566,24,24,http://gateway:8080/api/code/submit,4,0,0
+1779798705224,16201,POST /api/auth/login,200,,并发一致性测试 1-11,text,true,,505,289,22,22,http://gateway:8080/api/auth/login,16201,0,2
+1779798721428,5,POST /api/exam/enter/{id},200,,并发一致性测试 1-11,text,true,,209,425,22,22,http://gateway:8080/api/exam/enter/1,5,0,1
+1779798721433,4,POST /api/code/submit (并发提交),200,,并发一致性测试 1-11,text,false,代码提交失败,274,570,22,22,http://gateway:8080/api/code/submit,4,0,1
+1779798705711,15806,POST /api/auth/login,200,,并发一致性测试 1-14,text,true,,505,289,21,21,http://gateway:8080/api/auth/login,15803,0,1
+1779798721517,9,POST /api/exam/enter/{id},200,,并发一致性测试 1-14,text,true,,209,425,21,21,http://gateway:8080/api/exam/enter/1,9,0,0
+1779798721527,4,POST /api/code/submit (并发提交),200,,并发一致性测试 1-14,text,false,代码提交失败,274,570,21,21,http://gateway:8080/api/code/submit,4,0,1
+1779798704727,17295,POST /api/auth/login,200,,并发一致性测试 1-8,text,true,,501,288,20,20,http://gateway:8080/api/auth/login,17295,0,0
+1779798722024,7,POST /api/exam/enter/{id},200,,并发一致性测试 1-8,text,true,,209,423,20,20,http://gateway:8080/api/exam/enter/1,7,0,1
+1779798722032,6,POST /api/code/submit (并发提交),200,,并发一致性测试 1-8,text,false,代码提交失败,274,566,20,20,http://gateway:8080/api/code/submit,6,0,1
+1779798706373,15847,POST /api/auth/login,200,,并发一致性测试 1-18,text,true,,505,289,19,19,http://gateway:8080/api/auth/login,15847,0,1
+1779798722223,5,POST /api/exam/enter/{id},200,,并发一致性测试 1-18,text,true,,209,425,19,19,http://gateway:8080/api/exam/enter/1,5,0,0
+1779798722228,5,POST /api/code/submit (并发提交),200,,并发一致性测试 1-18,text,false,代码提交失败,274,570,19,19,http://gateway:8080/api/code/submit,5,0,1
+1779798707873,14549,POST /api/auth/login,200,,并发一致性测试 1-27,text,true,,505,289,18,18,http://gateway:8080/api/auth/login,14548,0,2
+1779798722422,15,POST /api/exam/enter/{id},200,,并发一致性测试 1-27,text,true,,209,425,18,18,http://gateway:8080/api/exam/enter/1,15,0,6
+1779798722438,7,POST /api/code/submit (并发提交),200,,并发一致性测试 1-27,text,false,代码提交失败,274,570,18,18,http://gateway:8080/api/code/submit,7,0,1
+1779798704383,18742,POST /api/auth/login,200,,并发一致性测试 1-6,text,true,,501,288,17,17,http://gateway:8080/api/auth/login,18738,0,1
+1779798723125,4,POST /api/exam/enter/{id},200,,并发一致性测试 1-6,text,true,,209,423,17,17,http://gateway:8080/api/exam/enter/1,4,0,0
+1779798723130,3,POST /api/code/submit (并发提交),200,,并发一致性测试 1-6,text,false,代码提交失败,274,566,17,17,http://gateway:8080/api/code/submit,3,0,0
+1779798705554,18171,POST /api/auth/login,200,,并发一致性测试 1-13,text,true,,505,289,16,16,http://gateway:8080/api/auth/login,18169,0,2
+1779798723726,5,POST /api/exam/enter/{id},200,,并发一致性测试 1-13,text,true,,209,425,16,16,http://gateway:8080/api/exam/enter/1,5,0,1
+1779798723731,4,POST /api/code/submit (并发提交),200,,并发一致性测试 1-13,text,false,代码提交失败,274,570,16,16,http://gateway:8080/api/code/submit,4,0,1
+1779798705877,18040,POST /api/auth/login,200,,并发一致性测试 1-15,text,true,,505,289,15,15,http://gateway:8080/api/auth/login,18038,0,1
+1779798723918,9,POST /api/exam/enter/{id},200,,并发一致性测试 1-15,text,true,,209,425,15,15,http://gateway:8080/api/exam/enter/1,8,0,0
+1779798723927,3,POST /api/code/submit (并发提交),200,,并发一致性测试 1-15,text,false,代码提交失败,274,570,15,15,http://gateway:8080/api/code/submit,3,0,1
+1779798705379,18736,POST /api/auth/login,200,,并发一致性测试 1-12,text,true,,505,289,14,14,http://gateway:8080/api/auth/login,18736,0,1
+1779798708205,15916,POST /api/auth/login,200,,并发一致性测试 1-29,text,true,,505,289,14,14,http://gateway:8080/api/auth/login,15916,0,1
+1779798724116,10,POST /api/exam/enter/{id},200,,并发一致性测试 1-12,text,true,,209,425,14,14,http://gateway:8080/api/exam/enter/1,10,0,0
+1779798724121,5,POST /api/exam/enter/{id},200,,并发一致性测试 1-29,text,true,,209,425,14,14,http://gateway:8080/api/exam/enter/1,5,0,1
+1779798724127,4,POST /api/code/submit (并发提交),200,,并发一致性测试 1-12,text,false,代码提交失败,274,570,14,14,http://gateway:8080/api/code/submit,4,0,0
+1779798724127,4,POST /api/code/submit (并发提交),200,,并发一致性测试 1-29,text,false,代码提交失败,274,570,14,14,http://gateway:8080/api/code/submit,4,0,0
+1779798707541,16780,POST /api/auth/login,200,,并发一致性测试 1-25,text,true,,505,289,12,12,http://gateway:8080/api/auth/login,16780,0,1
+1779798707374,16947,POST /api/auth/login,200,,并发一致性测试 1-24,text,true,,505,289,12,12,http://gateway:8080/api/auth/login,16946,0,1
+1779798704551,19772,POST /api/auth/login,200,,并发一致性测试 1-7,text,true,,501,288,12,12,http://gateway:8080/api/auth/login,19772,0,1
+1779798724322,6,POST /api/exam/enter/{id},200,,并发一致性测试 1-25,text,true,,209,425,12,12,http://gateway:8080/api/exam/enter/1,6,0,3
+1779798724322,6,POST /api/exam/enter/{id},200,,并发一致性测试 1-24,text,true,,209,425,12,12,http://gateway:8080/api/exam/enter/1,6,0,0
+1779798724324,4,POST /api/exam/enter/{id},200,,并发一致性测试 1-7,text,true,,209,423,12,12,http://gateway:8080/api/exam/enter/1,4,0,0
+1779798724329,4,POST /api/code/submit (并发提交),200,,并发一致性测试 1-25,text,false,代码提交失败,274,570,12,12,http://gateway:8080/api/code/submit,4,0,0
+1779798724329,4,POST /api/code/submit (并发提交),200,,并发一致性测试 1-24,text,false,代码提交失败,274,570,12,12,http://gateway:8080/api/code/submit,4,0,0
+1779798724329,4,POST /api/code/submit (并发提交),200,,并发一致性测试 1-7,text,false,代码提交失败,274,566,12,12,http://gateway:8080/api/code/submit,4,0,0
+1779798707040,17381,POST /api/auth/login,200,,并发一致性测试 1-22,text,true,,505,289,9,9,http://gateway:8080/api/auth/login,17381,0,3
+1779798724422,6,POST /api/exam/enter/{id},200,,并发一致性测试 1-22,text,true,,209,425,9,9,http://gateway:8080/api/exam/enter/1,6,0,0
+1779798724429,3,POST /api/code/submit (并发提交),200,,并发一致性测试 1-22,text,false,代码提交失败,274,570,9,9,http://gateway:8080/api/code/submit,3,0,0
+1779798707210,17705,POST /api/auth/login,200,,并发一致性测试 1-23,text,true,,505,289,8,8,http://gateway:8080/api/auth/login,17704,0,2
+1779798724915,11,POST /api/exam/enter/{id},200,,并发一致性测试 1-23,text,true,,209,425,8,8,http://gateway:8080/api/exam/enter/1,11,0,1
+1779798724927,4,POST /api/code/submit (并发提交),200,,并发一致性测试 1-23,text,false,代码提交失败,274,570,8,8,http://gateway:8080/api/code/submit,4,0,1
+1779798707704,17411,POST /api/auth/login,200,,并发一致性测试 1-26,text,true,,505,289,7,7,http://gateway:8080/api/auth/login,17411,0,2
+1779798706206,18919,POST /api/auth/login,200,,并发一致性测试 1-17,text,true,,505,289,7,7,http://gateway:8080/api/auth/login,18918,0,0
+1779798725116,13,POST /api/exam/enter/{id},200,,并发一致性测试 1-26,text,true,,209,425,7,7,http://gateway:8080/api/exam/enter/1,13,0,1
+1779798725126,5,POST /api/exam/enter/{id},200,,并发一致性测试 1-17,text,true,,209,425,7,7,http://gateway:8080/api/exam/enter/1,5,0,1
+1779798725130,4,POST /api/code/submit (并发提交),200,,并发一致性测试 1-26,text,false,代码提交失败,274,570,7,7,http://gateway:8080/api/code/submit,3,0,0
+1779798725132,4,POST /api/code/submit (并发提交),200,,并发一致性测试 1-17,text,false,代码提交失败,274,570,6,6,http://gateway:8080/api/code/submit,4,0,0
+1779798708370,16846,POST /api/auth/login,200,,并发一致性测试 1-30,text,true,,505,289,5,5,http://gateway:8080/api/auth/login,16845,0,2
+1779798725217,11,POST /api/exam/enter/{id},200,,并发一致性测试 1-30,text,true,,209,425,5,5,http://gateway:8080/api/exam/enter/1,11,0,1
+1779798725229,9,POST /api/code/submit (并发提交),200,,并发一致性测试 1-30,text,false,代码提交失败,274,570,5,5,http://gateway:8080/api/code/submit,8,0,1
+1779798706040,19280,POST /api/auth/login,200,,并发一致性测试 1-16,text,true,,505,289,4,4,http://gateway:8080/api/auth/login,19280,0,1
+1779798725322,7,POST /api/exam/enter/{id},200,,并发一致性测试 1-16,text,true,,209,425,4,4,http://gateway:8080/api/exam/enter/1,7,0,1
+1779798725329,4,POST /api/code/submit (并发提交),200,,并发一致性测试 1-16,text,false,代码提交失败,274,570,4,4,http://gateway:8080/api/code/submit,4,0,1
+1779798706873,19245,POST /api/auth/login,200,,并发一致性测试 1-21,text,true,,505,289,3,3,http://gateway:8080/api/auth/login,19245,0,1
+1779798726119,9,POST /api/exam/enter/{id},200,,并发一致性测试 1-21,text,true,,209,425,3,3,http://gateway:8080/api/exam/enter/1,9,0,0
+1779798726129,4,POST /api/code/submit (并发提交),200,,并发一致性测试 1-21,text,false,代码提交失败,274,570,3,3,http://gateway:8080/api/code/submit,4,0,1
+1779798706540,19687,POST /api/auth/login,200,,并发一致性测试 1-19,text,true,,505,289,2,2,http://gateway:8080/api/auth/login,19687,0,1
+1779798726228,5,POST /api/exam/enter/{id},200,,并发一致性测试 1-19,text,true,,209,425,2,2,http://gateway:8080/api/exam/enter/1,5,0,0
+1779798708039,18194,POST /api/auth/login,200,,并发一致性测试 1-28,text,true,,505,289,2,2,http://gateway:8080/api/auth/login,18194,0,1
+1779798726234,7,POST /api/exam/enter/{id},200,,并发一致性测试 1-28,text,true,,209,425,2,2,http://gateway:8080/api/exam/enter/1,7,0,0
+1779798726234,7,POST /api/code/submit (并发提交),200,,并发一致性测试 1-19,text,false,代码提交失败,274,570,2,2,http://gateway:8080/api/code/submit,6,0,0
+1779798726241,5,POST /api/code/submit (并发提交),200,,并发一致性测试 1-28,text,false,代码提交失败,274,570,1,1,http://gateway:8080/api/code/submit,5,0,1

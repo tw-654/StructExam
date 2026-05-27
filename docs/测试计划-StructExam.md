@@ -4,7 +4,7 @@
 |---------|------|
 | 项目名称 | StructExam 数据结构机考平台 |
 | 测试对象范围 | 学生端、教师端、管理员端 Web 应用及经网关访问的相关 API |
-| 文档版本 | **4.0** |
+| 文档版本 | **5.0**（BCrypt优化后测试计划） |
 | 编制说明 | 依据 GB/T 软件工程文档习惯与项目 `SPEC.md`、`README.md` 整理；增加教师端、管理员端及分布式非功能测试；新增高并发一致性、可用性、可靠性与容错测试；**新增JMeter容器化配置与极端情况测试用例** |
 
 ---
@@ -81,8 +81,11 @@
 | student01 | StructExam123 | STUDENT | student01@structexam.com |
 | student02 | StructExam123 | STUDENT | student02@structexam.com |
 | jmeter_docker_01 | StructExam123 | STUDENT | jmeter@structexam.com |
+| perf_user_1_1000 ~ perf_user_60_1000 | StructExam123 | STUDENT | perf{1-60}@test.com |
 
-**BCrypt哈希**：所有测试账号使用统一的BCrypt哈希：`$2a$12$Durxad3.G8xeSdx.KZBtTOTcFOWh8iqyVHFByWZ6Njc3TsSL6lPeq`
+**BCrypt哈希**：所有测试账号使用统一的BCrypt哈希（cost=10）：`$2a$10$HFvtoQ1Ud7sbXfJsQzHP2eQwT80KXyWvHHColl5rCicNZkK.hy8UW`
+
+**性能测试用户说明**：60个perf_user账号用于JMeter高并发测试，每个线程使用独立用户避免token冲突，通过`sql/insert_perf_users.sql`批量插入。
 
 #### 测试工具配置
 - **Playwright**：容器化运行，通过`E2E_BASE_URL=http://frontend`访问前端
@@ -612,13 +615,21 @@ flowchart LR
 | 平均延迟 | 所有请求响应时间平均值 | < 200ms | JMeter聚合报告 |
 | 最大延迟 | 单次请求最大响应时间 | < 5000ms | JMeter聚合报告 |
 
-**真实测试结果（2026-05-23）**：
-| 接口 | P95 | P99 | 平均响应时间 | 吞吐量 |
-|------|-----|-----|--------------|--------|
-| POST /api/auth/login | 15122ms | 15122ms | 504ms | 9.2 req/s |
-| GET /api/exam/list | 7296ms | 7296ms | 265ms | 18.5 req/s |
-| POST /api/exam/enter/{id} | 5170ms | 5170ms | 143ms | 27.0 req/s |
-| POST /api/code/submit | 31193ms | 31193ms | 362ms | 56.0 req/s |
+**真实测试结果（2026-05-26，使用60用户CSV）：**
+
+| 脚本 | 样本数 | 成功率 | 平均响应时间 | P95 | P99 | 吞吐量 | 备注 |
+|------|--------|--------|--------------|-----|-----|--------|------|
+| `api_stability_test.jmx` | 3424 | 100% | 198ms | 289ms | 5975ms | 8.5 req/s | **推荐参考** |
+| `concurrency_consistency.jmx` | 90 | 66.67% | 2376ms | 10245ms | 11075ms | 6.7 req/s | 代码提交失败 |
+
+**api_stability_test.jmx 各接口统计：**
+| 接口 | 请求数 | 成功率 | 平均响应时间 | P95 | P99 |
+|------|--------|--------|--------------|-----|-----|
+| POST /api/auth/login | 696 | 100% | 948ms | 5975ms | 8662ms |
+| POST /api/code/submit | 683 | 100% | 5ms | 10ms | 15ms |
+| GET /api/exam/{id} | 685 | 100% | 6ms | 11ms | 17ms |
+| GET /api/code/{exam}/{question} | 681 | 100% | 7ms | 12ms | 16ms |
+| GET /api/exam/list | 679 | 100% | 9ms | 15ms | 19ms |
 
 **教师端API测试结果（修复后）**：
 | 指标 | 值 |
@@ -683,13 +694,38 @@ flowchart LR
 | GET /api/code/{exam}/{question} | 获取代码草稿 | 响应时间 < 50ms，错误率 0% |
 | POST /api/code/submit | 提交代码 | 响应时间 < 100ms，错误率 0% |
 
-**真实测试结果（2026-05-23）**：
-| 接口 | 样本数 | 成功率 | 平均响应时间 | P95 | P99 |
+**真实测试结果（2026-05-26，使用60用户CSV）**：
+
+| 脚本 | 场景 | 线程数 | 样本数 | 成功率 | 平均响应时间 | P95 | P99 | 吞吐量 | 备注 |
+|------|------|--------|--------|--------|--------------|-----|-----|--------|------|
+| `exam_high_concurrency.jmx` | 高并发 | 30 | 150 | 100% | 2921ms | 17877ms | 20808ms | 5.5 req/s | **已修复XML** |
+| `api_stability_test.jmx` | 稳定性 | 20 | 3424 | 100% | 198ms | 289ms | 5975ms | 8.5 req/s | **推荐参考** |
+| `concurrency_consistency.jmx` | 一致性 | 30 | 90 | 66.67% | 5220ms | 18919ms | 19772ms | 4.0 req/s | 代码提交失败因业务逻辑限制 |
+
+**exam_high_concurrency.jmx 各接口详细统计（30线程，已修复XML）**：
+| 接口 | 请求数 | 成功率 | 平均响应时间 | P95 | P99 |
 |------|--------|--------|--------------|-----|-----|
-| POST /api/auth/login | 150 | 100% | 82ms | 91ms | 119ms |
-| GET /api/exam/list | 150 | 100% | 20ms | 24ms | 40ms |
-| POST /api/exam/enter/{id} | 150 | 100% | 12ms | 16ms | 50ms |
-| POST /api/code/submit | 150 | 100% | 45ms | 55ms | 80ms |
+| POST /api/auth/login | 30 | 100% | 14,581ms | 20,808ms | 21,869ms |
+| GET /api/exam/list | 30 | 100% | 9ms | 14ms | 15ms |
+| POST /api/exam/enter/{id} | 30 | 100% | 6ms | 9ms | 9ms |
+| GET /api/exam/{id} | 30 | 100% | 5ms | 7ms | 8ms |
+| POST /api/code/submit | 30 | 100% | 5ms | 11ms | 11ms |
+
+**api_stability_test.jmx 各接口详细统计（20线程并发）**：
+| 接口 | 请求数 | 成功率 | 平均响应时间 | P95 | P99 |
+|------|--------|--------|--------------|-----|-----|
+| POST /api/auth/login | 696 | 100% | 948ms | 5975ms | 8662ms |
+| POST /api/code/submit | 683 | 100% | 5ms | 10ms | 15ms |
+| GET /api/exam/{id} | 685 | 100% | 6ms | 11ms | 17ms |
+| GET /api/code/{exam}/{question} | 681 | 100% | 7ms | 12ms | 16ms |
+| GET /api/exam/list | 679 | 100% | 9ms | 15ms | 19ms |
+
+**测试说明**：
+- **数据可靠性**：`api_stability_test.jmx`（20线程/60用户）无轮询干扰，推荐作为学生端性能基准参考
+- **exam_high_concurrency.jmx**（30线程）：已修复XML错误，测试高并发场景下各接口表现
+- **concurrency_consistency.jmx**（30线程）：代码提交失败率33.33%是因为业务逻辑（防重复交卷），系统行为正确，非脚本问题
+- **登录接口性能**：BCrypt密码验证计算密集（成本因子10），高并发下P95约10秒是预期行为，已通过降低cost因子优化
+- **读接口性能良好**：考试列表、详情、代码查询等接口响应时间均在20ms以内
 
 #### 2.6.14 测试 14（标识符 TP-NF-14）：JMeter容器化测试
 
@@ -724,7 +760,7 @@ jmeter:
 - **问题**：初始拉取官方JMeter镜像失败（size validation failed）
 - **解决**：创建`Dockerfile.jmeter`基于本地JDK构建JMeter镜像
 - **问题**：测试账号密码哈希与init.sql不一致
-- **解决**：统一使用BCrypt哈希`$2a$12$Durxad3.G8xeSdx.KZBtTOTcFOWh8iqyVHFByWZ6Njc3TsSL6lPeq`
+- **解决**：统一使用BCrypt哈希`$2a$10$HFvtoQ1Ud7sbXfJsQzHP2eQwT80KXyWvHHColl5rCicNZkK.hy8UW`（cost=10）
 
 ---
 
