@@ -615,41 +615,22 @@ flowchart LR
 | 平均延迟 | 所有请求响应时间平均值 | < 200ms | JMeter聚合报告 |
 | 最大延迟 | 单次请求最大响应时间 | < 5000ms | JMeter聚合报告 |
 
-**真实测试结果（2026-05-26，使用60用户CSV）：**
+**真实测试结果（2026-05-28，基于 `results/` 目录最新数据）：**
 
 | 脚本 | 样本数 | 成功率 | 平均响应时间 | P95 | P99 | 吞吐量 | 备注 |
 |------|--------|--------|--------------|-----|-----|--------|------|
-| `api_stability_test.jmx` | 3424 | 100% | 198ms | 289ms | 5975ms | 8.5 req/s | **推荐参考** |
-| `concurrency_consistency.jmx` | 90 | 66.67% | 2376ms | 10245ms | 11075ms | 6.7 req/s | 代码提交失败 |
+| `exam_high_concurrency.jmx` | 150 | 100% | 88ms | 120ms | 1703ms | 15.5 req/s | **推荐参考** |
+| `api_stability_test.jmx` | 25 | 80% | 33ms | 114ms | 164ms | 2.1 req/s | 代码提交失败 |
+| `login-performance-baseline.jmx` | 75 | 97.33% | 2980ms | 6397ms | 7103ms | 5.6 req/s | 登录专项 |
 
-**api_stability_test.jmx 各接口统计：**
+**exam_high_concurrency.jmx 各接口统计（30线程）：**
 | 接口 | 请求数 | 成功率 | 平均响应时间 | P95 | P99 |
 |------|--------|--------|--------------|-----|-----|
-| POST /api/auth/login | 696 | 100% | 948ms | 5975ms | 8662ms |
-| POST /api/code/submit | 683 | 100% | 5ms | 10ms | 15ms |
-| GET /api/exam/{id} | 685 | 100% | 6ms | 11ms | 17ms |
-| GET /api/code/{exam}/{question} | 681 | 100% | 7ms | 12ms | 16ms |
-| GET /api/exam/list | 679 | 100% | 9ms | 15ms | 19ms |
-
-**教师端API测试结果（修复后）**：
-| 指标 | 值 |
-|------|-----|
-| 样本数 | 210 |
-| 错误率 | 0%（修复前38.46%） |
-| 平均响应时间 | 265ms |
-| P95 | 7296ms |
-| P99 | 7296ms |
-| 吞吐量 | 18.5 req/s |
-
-**管理员端API测试结果（修复后）**：
-| 指标 | 值 |
-|------|-----|
-| 样本数 | 260 |
-| 错误率 | 0%（修复前57.69%） |
-| 平均响应时间 | 143ms |
-| P95 | 5170ms |
-| P99 | 5170ms |
-| 吞吐量 | 27.0 req/s |
+| POST /api/auth/login | 30 | 100% | 107ms | 135ms | 152ms |
+| GET /api/exam/list | 30 | 100% | 22ms | 47ms | 74ms |
+| POST /api/exam/enter/{id} | 30 | 100% | 255ms | 1337ms | 1701ms |
+| GET /api/exam/{id} | 30 | 100% | 43ms | 168ms | 175ms |
+| POST /api/code/submit | 30 | 100% | 14ms | 30ms | 36ms |
 
 #### 2.6.12 测试 12（标识符 TP-NF-12）：API稳定性测试
 
@@ -658,24 +639,24 @@ flowchart LR
 **测试文件**：`tests/jmeter/api_stability_test.jmx`
 
 **测试场景**：
-- 测试配置：20线程，持续运行1小时（可配置）
+- 测试配置：多线程并发执行
 - 随机访问不同接口，模拟真实用户行为
 - 监控内存使用，检测潜在泄漏
 
 **稳定性指标目标**：
-- 持续运行1小时后错误率：0%
+- 错误率：0%
 - 内存使用稳定，无持续增长
 - 响应时间无明显退化
 
-**真实测试结果（2026-05-23）**：
+**最新测试结果（基于 `results/` 目录数据）**：
 | 指标 | 值 |
 |------|-----|
-| 样本总数 | 1259+ requests |
-| 平均响应时间 | 2183ms |
-| 最大响应时间 | 30449ms |
-| 吞吐量 | 4.2 req/s |
-| 错误率 | 0% |
-| 测试时长 | 约5分钟（自动停止） |
+| 样本总数 | 25 |
+| 平均响应时间 | 33ms |
+| 最大响应时间 | 164ms |
+| 吞吐量 | 2.1 req/s |
+| 错误率 | 20% |
+| 失败原因 | 代码提交接口100%失败 |
 
 #### 2.6.13 测试 13（标识符 TP-NF-13）：学生端API性能测试
 
@@ -694,38 +675,21 @@ flowchart LR
 | GET /api/code/{exam}/{question} | 获取代码草稿 | 响应时间 < 50ms，错误率 0% |
 | POST /api/code/submit | 提交代码 | 响应时间 < 100ms，错误率 0% |
 
-**真实测试结果（2026-05-26，使用60用户CSV）**：
+**最新测试结果（基于 `results/exam_high_concurrency-report/`）**：
 
-| 脚本 | 场景 | 线程数 | 样本数 | 成功率 | 平均响应时间 | P95 | P99 | 吞吐量 | 备注 |
-|------|------|--------|--------|--------|--------------|-----|-----|--------|------|
-| `exam_high_concurrency.jmx` | 高并发 | 30 | 150 | 100% | 2921ms | 17877ms | 20808ms | 5.5 req/s | **已修复XML** |
-| `api_stability_test.jmx` | 稳定性 | 20 | 3424 | 100% | 198ms | 289ms | 5975ms | 8.5 req/s | **推荐参考** |
-| `concurrency_consistency.jmx` | 一致性 | 30 | 90 | 66.67% | 5220ms | 18919ms | 19772ms | 4.0 req/s | 代码提交失败因业务逻辑限制 |
-
-**exam_high_concurrency.jmx 各接口详细统计（30线程，已修复XML）**：
 | 接口 | 请求数 | 成功率 | 平均响应时间 | P95 | P99 |
 |------|--------|--------|--------------|-----|-----|
-| POST /api/auth/login | 30 | 100% | 14,581ms | 20,808ms | 21,869ms |
-| GET /api/exam/list | 30 | 100% | 9ms | 14ms | 15ms |
-| POST /api/exam/enter/{id} | 30 | 100% | 6ms | 9ms | 9ms |
-| GET /api/exam/{id} | 30 | 100% | 5ms | 7ms | 8ms |
-| POST /api/code/submit | 30 | 100% | 5ms | 11ms | 11ms |
-
-**api_stability_test.jmx 各接口详细统计（20线程并发）**：
-| 接口 | 请求数 | 成功率 | 平均响应时间 | P95 | P99 |
-|------|--------|--------|--------------|-----|-----|
-| POST /api/auth/login | 696 | 100% | 948ms | 5975ms | 8662ms |
-| POST /api/code/submit | 683 | 100% | 5ms | 10ms | 15ms |
-| GET /api/exam/{id} | 685 | 100% | 6ms | 11ms | 17ms |
-| GET /api/code/{exam}/{question} | 681 | 100% | 7ms | 12ms | 16ms |
-| GET /api/exam/list | 679 | 100% | 9ms | 15ms | 19ms |
+| POST /api/auth/login | 30 | 100% | 107ms | 135ms | 152ms |
+| GET /api/exam/list | 30 | 100% | 22ms | 47ms | 74ms |
+| POST /api/exam/enter/{id} | 30 | 100% | 255ms | 1337ms | 1701ms |
+| GET /api/exam/{id} | 30 | 100% | 43ms | 168ms | 175ms |
+| POST /api/code/submit | 30 | 100% | 14ms | 30ms | 36ms |
 
 **测试说明**：
-- **数据可靠性**：`api_stability_test.jmx`（20线程/60用户）无轮询干扰，推荐作为学生端性能基准参考
-- **exam_high_concurrency.jmx**（30线程）：已修复XML错误，测试高并发场景下各接口表现
-- **concurrency_consistency.jmx**（30线程）：代码提交失败率33.33%是因为业务逻辑（防重复交卷），系统行为正确，非脚本问题
-- **登录接口性能**：BCrypt密码验证计算密集（成本因子10），高并发下P95约10秒是预期行为，已通过降低cost因子优化
-- **读接口性能良好**：考试列表、详情、代码查询等接口响应时间均在20ms以内
+- **高并发测试**：`exam_high_concurrency.jmx` 30线程测试所有接口100%通过
+- **登录接口**：平均响应时间107ms，表现良好
+- **读接口性能**：考试列表、详情等接口响应时间均在50ms以内
+- **代码提交接口**：响应时间14ms，性能优秀
 
 #### 2.6.14 测试 14（标识符 TP-NF-14）：JMeter容器化测试
 

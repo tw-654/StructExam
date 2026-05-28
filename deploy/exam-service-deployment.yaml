@@ -1,0 +1,29 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: exam-service
+  namespace: structexam
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: exam-service
+  template:
+    metadata:
+      labels:
+        app: exam-service
+    spec:
+      containers:
+      - name: exam-service
+        image: structexam-exam-service:latest
+        ports:
+        - containerPort: 8082
+        env:
+        - name: SPRING_PROFILES_ACTIVE
+          value: "k8s"
+        - name: NACOS_SERVER_ADDR
+          value: "nacos:8848"
+        - name: MYSQL_HOST
+          value: "mysql"
+        - name: REDIS_HOST
+          value: "redis"
