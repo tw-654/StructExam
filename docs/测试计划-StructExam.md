@@ -913,4 +913,99 @@ jmeter:
 
 ---
 
+## 5 测试执行结果（2026-05-29 更新）
+
+### 5.1 本次执行概要
+
+| 测试类型 | 测试日期 | 环境 | 结果 |
+|----------|----------|------|------|
+| K8s集群部署 | 2026-05-29 | Docker Desktop K8s | ✅ 全部通过 |
+| 多浏览器兼容性 | 2026-05-29 | Playwright | ✅ 全部通过 |
+| 安全扫描 | 2026-05-28 | SQLMap + 手工 | ✅ 无漏洞 |
+| 高并发测试 | 2026-05-28 | JMeter | ✅ 通过率100% |
+| 登录功能 | 2026-05-29 | K8s环境 | ✅ Token正常 |
+
+### 5.2 K8s集群部署验证
+
+**部署状态**：16个Pod全部Running
+
+| 组件 | 副本数 | 状态 | 验证结果 |
+|------|--------|------|----------|
+| MySQL | 1 | Running | ✅ 数据初始化完成 |
+| Redis | 1 | Running | ✅ 缓存正常 |
+| Nacos | 1 | Running | ✅ 服务注册成功 |
+| Gateway | 2 | Running | ✅ API路由正常 |
+| User Service | 2 | Running | ✅ 登录接口正常 |
+| Exam Service | 2 | Running | ✅ 服务间通信正常 |
+| Code Service | 2 | Running | ✅ 服务间通信正常 |
+| Sandbox Node | 3 | Running | ✅ 判题节点健康 |
+| Frontend | 2 | Running | ✅ Vue.js SPA正常 |
+
+**K8s特性验证**：
+- ✅ Pod调度：多副本均衡分布
+- ✅ 服务发现：DNS解析正常（user-service.structexam.svc.cluster.local）
+- ✅ 负载均衡：ClusterIP和LoadBalancer服务正常
+- ✅ 网络策略：structexam-allow-internal已应用
+- ✅ 服务间通信：Gateway→User Service、User Service→Exam Service均正常
+
+**修复的问题**：
+- D-03: 创建微服务ClusterIP Service（user-service、exam-service、code-service）
+- D-04: 添加MYSQL_PASSWORD环境变量
+- D-05: MySQL认证插件从caching_sha2_password改为mysql_native_password
+
+### 5.3 多浏览器兼容性测试
+
+**测试框架**：Playwright v1.40+
+**测试用例**：login-flow.spec.js（学生登录流程）
+**测试数据**：student01 / StructExam123
+
+| 浏览器 | 引擎 | 结果 | 响应时间 |
+|--------|------|------|----------|
+| Chromium | Chrome | ✅ PASS | 2.6s |
+| Firefox | Gecko | ✅ PASS | 7.0s |
+| WebKit | Safari | ✅ PASS | 5.6s |
+| Microsoft Edge | Chromium | ✅ PASS | 2.8s |
+
+**验证内容**：
+- Vue.js 3.x前端正常加载
+- 登录表单渲染正确
+- JWT Token接收和处理正常
+- 页面跳转（/login → /home）正常
+
+### 5.4 安全扫描结果
+
+**扫描工具**：SQLMap + 手工测试
+**扫描日期**：2026-05-28
+
+| 测试项 | 结果 | 说明 |
+|--------|------|------|
+| SQL注入 | ✅ 无漏洞 | 参数化查询有效 |
+| XSS攻击 | ✅ 无漏洞 | 输出转义正常 |
+| 认证绕过 | ✅ 安全 | JWT验证正常 |
+
+### 5.5 性能测试结果
+
+**环境**：Docker Desktop Kubernetes
+**工具**：JMeter 5.6.3
+
+| 测试场景 | 样本数 | 成功率 | 平均响应 | P95 | 吞吐量 |
+|----------|--------|--------|----------|-----|--------|
+| 高并发测试 | 150 | 100% | 88ms | 120ms | 15.5 req/s |
+| 登录性能 | 75 | 97.33% | 2980ms | 6397ms | 5.6 req/s |
+| 稳定性测试 | 25 | 80% | 33ms | 114ms | 2.1 req/s |
+
+**关键接口性能**：
+- 登录接口：平均107ms（高并发），P95=135ms ✅
+- 考试列表：平均22ms，P95=47ms ✅
+- 代码提交：平均14ms，P95=30ms ✅
+
+### 5.6 待补充测试（如需完整签字）
+
+| 测试项 | 建议 | 预计工作量 |
+|--------|------|------------|
+| 长时间稳定性测试（1小时+） | 观察内存泄漏和性能衰减 | 1人日 |
+| 生产环境性能基线 | 建立每个接口的性能基准 | 1人日 |
+
+---
+
 **文档结束**

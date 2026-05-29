@@ -1,7 +1,7 @@
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
-  name: structexam-network-policy
+  name: structexam-allow-internal
   namespace: structexam
 spec:
   podSelector: {}
@@ -10,14 +10,37 @@ spec:
   - Egress
   ingress:
   - from:
-    - ipBlock:
-        cidr: 0.0.0.0/0
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: structexam
     ports:
     - protocol: TCP
       port: 80
     - protocol: TCP
       port: 8080
+    - protocol: TCP
+      port: 8081
+    - protocol: TCP
+      port: 8082
+    - protocol: TCP
+      port: 8083
+    - protocol: TCP
+      port: 3306
+    - protocol: TCP
+      port: 6379
+    - protocol: TCP
+      port: 8848
   egress:
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: structexam
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: kube-system
   - to:
     - ipBlock:
         cidr: 0.0.0.0/0
+        except:
+        - 10.244.0.0/16

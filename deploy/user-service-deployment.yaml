@@ -25,5 +25,7 @@ spec:
           value: "nacos:8848"
         - name: MYSQL_HOST
           value: "mysql"
+        - name: MYSQL_PASSWORD
+          value: "StructExam@123"
         - name: REDIS_HOST
           value: "redis"
