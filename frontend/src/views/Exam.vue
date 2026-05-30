@@ -72,10 +72,12 @@
             </span>
           </div>
           <div class="terminal-body" ref="terminalRef">
-            <div v-for="(line, index) in terminalLines" :key="index" :class="line.type">
-              <span v-if="line.type === 'input'">&gt;</span>
-              {{ line.content }}
-            </div>
+            <template v-for="(line, index) in terminalLines" :key="index">
+              <pre v-if="line.type === 'error'" class="terminal-line error">{{ line.content }}</pre>
+              <div v-else class="terminal-line" :class="line.type">
+                <span v-if="line.type === 'input'" class="terminal-prompt">&gt;</span>{{ line.content }}
+              </div>
+            </template>
           </div>
         </div>
 
@@ -782,27 +784,47 @@ onBeforeUnmount(() => {
 
 .terminal-body {
   padding: 12px;
-  min-height: 150px;
-  max-height: 300px;
+  min-height: 2.5rem;
+  height: auto;
+  max-height: min(50vh, 560px);
   overflow-y: auto;
+  overflow-x: auto;
   font-family: Consolas, Monaco, monospace;
   font-size: 14px;
   line-height: 1.5;
 }
 
-.terminal-body .output {
+.terminal-line {
+  margin: 2px 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.terminal-line.output {
   color: #d4d4d4;
-  margin: 2px 0;
 }
 
-.terminal-body .input {
+.terminal-line.input {
   color: #4ec9b0;
-  margin: 2px 0;
 }
 
-.terminal-body .error {
+.terminal-line.error,
+.terminal-body pre.error {
   color: #f14c4c;
-  margin: 2px 0;
+  margin: 4px 0;
+  padding: 0;
+  background: transparent;
+  border: none;
+  font-family: inherit;
+  font-size: inherit;
+  line-height: inherit;
+  white-space: pre-wrap;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+}
+
+.terminal-prompt {
+  margin-right: 4px;
 }
 
 /* ---- 判定结果面板 ---- */
@@ -867,7 +889,10 @@ onBeforeUnmount(() => {
   color: #c0392b;
   margin: 0;
   white-space: pre-wrap;
-  word-break: break-all;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+  max-height: min(50vh, 560px);
+  overflow: auto;
 }
 
 </style>
