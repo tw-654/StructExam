@@ -46,8 +46,8 @@ public class JudgeCaseResult {
     private Long timeUsedMs;
     private Long memoryUsedKb;
 
-    /** 本用例分值快照 */
-    private Integer score;
+    /** 本用例权重快照（对应 t_question_test_case.weight） */
+    private Integer weight;
 
     @TableField(fill = FieldFill.INSERT)
     private LocalDateTime createTime;
@@ -94,8 +94,8 @@ public class JudgeCaseResult {
     public Long getMemoryUsedKb() { return memoryUsedKb; }
     public void setMemoryUsedKb(Long memoryUsedKb) { this.memoryUsedKb = memoryUsedKb; }
 
-    public Integer getScore() { return score; }
-    public void setScore(Integer score) { this.score = score; }
+    public Integer getWeight() { return weight; }
+    public void setWeight(Integer weight) { this.weight = weight; }
 
     public LocalDateTime getCreateTime() { return createTime; }
     public void setCreateTime(LocalDateTime createTime) { this.createTime = createTime; }

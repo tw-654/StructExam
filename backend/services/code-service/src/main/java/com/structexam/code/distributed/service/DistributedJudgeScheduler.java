@@ -4,6 +4,8 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.structexam.code.mapper.CodeSubmissionMapper;
+import com.structexam.code.mapper.JudgeRecordMapper;
+import com.structexam.common.entity.JudgeRecord;
 import com.structexam.code.service.JudgeRecordService;
 import com.structexam.code.distributed.config.DistributedJudgeProperties;
 import com.structexam.code.distributed.dto.JudgeResult;
@@ -43,6 +45,7 @@ public class DistributedJudgeScheduler {
     private final Executor distributedJudgeExecutor;
     private final RedisDistributedLockService lockService;
     private final CodeSubmissionMapper codeSubmissionMapper;
+    private final JudgeRecordMapper judgeRecordMapper;
     private final JudgeRecordService judgeRecordService;
 
     public DistributedJudgeScheduler(JudgeTaskQueueService queueService,
@@ -53,6 +56,7 @@ public class DistributedJudgeScheduler {
                                      Executor distributedJudgeExecutor,
                                      RedisDistributedLockService lockService,
                                      CodeSubmissionMapper codeSubmissionMapper,
+                                     JudgeRecordMapper judgeRecordMapper,
                                      JudgeRecordService judgeRecordService) {
         this.queueService = queueService;
         this.nodeRegistry = nodeRegistry;
@@ -62,6 +66,7 @@ public class DistributedJudgeScheduler {
         this.distributedJudgeExecutor = distributedJudgeExecutor;
         this.lockService = lockService;
         this.codeSubmissionMapper = codeSubmissionMapper;
+        this.judgeRecordMapper = judgeRecordMapper;
         this.judgeRecordService = judgeRecordService;
     }
 
@@ -111,9 +116,8 @@ public class DistributedJudgeScheduler {
             result.setSandboxNodeUri(node.getUri().toString());
             queueService.saveResult(result);
             if (task.isPersistResult()) {
-                persistJudgeResult(task, result);
-                // 写入测试用例判定明细（t_judge_record + t_judge_case_result）
                 judgeRecordService.completeJudge(task, result);
+                persistJudgeResult(task, result);
             }
             queueService.ack(payload);
             releaseSubmitLock(task);
@@ -159,9 +163,8 @@ public class DistributedJudgeScheduler {
             JudgeResult result = JudgeResultMapper.failed(task, reason);
             queueService.saveResult(result);
             if (task.isPersistResult()) {
-                persistJudgeResult(task, result);
-                // 最终失败时同样更新 t_judge_record 状态，避免记录永久停留在 JUDGING
                 judgeRecordService.completeJudge(task, result);
+                persistJudgeResult(task, result);
             }
             queueService.ack(payload);
             releaseSubmitLock(task);
@@ -206,8 +209,16 @@ public class DistributedJudgeScheduler {
         submission.setTimeUsedMs(result.getTimeUsedMs());
         submission.setMemoryUsedKb(result.getMemoryUsedKb());
         submission.setJudgeTime(result.getFinishedTime() == null ? LocalDateTime.now() : result.getFinishedTime());
-        int maxScore = task.getMaxScore() == null ? 0 : task.getMaxScore();
-        submission.setScore(result.getStatus() == JudgeTaskStatus.AC ? maxScore : 0);
+        JudgeRecord judgeRecord = judgeRecordMapper.selectOne(
+                new LambdaQueryWrapper<JudgeRecord>().eq(JudgeRecord::getTaskId, task.getTaskId()));
+        if (judgeRecord != null) {
+            submission.setScore(judgeRecord.getScore() != null ? judgeRecord.getScore() : 0);
+            if (judgeRecord.getJudgeStatus() != null) {
+                submission.setJudgeStatus(judgeRecord.getJudgeStatus());
+            }
+        } else {
+            submission.setScore(0);
+        }
         submission.setJudgeMessage(result.getError());
 
         if (submission.getId() == null) {
