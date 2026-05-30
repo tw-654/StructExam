@@ -100,6 +100,34 @@
       </el-col>
     </el-row>
 
+    <el-row :gutter="16" class="distribution-row">
+      <el-col :span="24">
+        <el-card v-loading="scoreDistributionLoading">
+          <template #header>
+            <div class="section-title">
+              <span>成绩分布统计（按得分率）</span>
+              <span class="muted" v-if="selectedExam">{{ selectedExam.title }}</span>
+            </div>
+          </template>
+          <el-empty v-if="!selectedExam" description="请选择一场考试" />
+          <template v-else>
+            <el-alert
+              v-if="scoreDistributionError"
+              :title="scoreDistributionError"
+              type="warning"
+              show-icon
+              :closable="false"
+              class="dist-alert"
+            />
+            <ScoreDistributionChart :data="scoreDistribution" />
+            <p class="score-dist-hint muted">
+              得分率 = 学生实际得分 ÷ 试卷总分 × 100%；按进入考试的学生记录统计各区间人数。
+            </p>
+          </template>
+        </el-card>
+      </el-col>
+    </el-row>
+
     <el-row :gutter="16" class="detail-row">
       <el-col :span="12">
         <el-card>
@@ -319,6 +347,7 @@ import { ref, reactive, onMounted, onBeforeUnmount } from 'vue'
 import { useRoute } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { examApi, questionApi, testCaseApi } from '@/api/modules'
+import ScoreDistributionChart from '@/components/ScoreDistributionChart.vue'
 
 const route = useRoute()
 const loading = ref(false)
@@ -330,6 +359,43 @@ const selectedExam = ref(null)
 const questions = ref([])
 const statistics = ref({})
 const studentScores = ref([])
+const scoreDistribution = ref([])
+const scoreDistributionLoading = ref(false)
+const scoreDistributionError = ref('')
+
+const SCORE_DISTRIBUTION_RANGES = ['<60%', '60%-70%', '70%-80%', '80%-90%', '90%-100%']
+
+const emptyScoreDistribution = () =>
+  SCORE_DISTRIBUTION_RANGES.map(range => ({ range, count: 0 }))
+
+const normalizeScoreDistribution = (data) => {
+  if (!Array.isArray(data) || data.length === 0) {
+    return emptyScoreDistribution()
+  }
+  const countByRange = Object.fromEntries(
+    data.map(item => [item.range, item.count ?? 0])
+  )
+  return SCORE_DISTRIBUTION_RANGES.map(range => ({
+    range,
+    count: Number(countByRange[range]) || 0
+  }))
+}
+
+const loadScoreDistribution = async (examId) => {
+  scoreDistributionLoading.value = true
+  scoreDistributionError.value = ''
+  try {
+    const res = await examApi.getScoreDistribution(examId)
+    scoreDistribution.value = normalizeScoreDistribution(res.data)
+  } catch (error) {
+    console.error('Failed to load score distribution:', error)
+    scoreDistribution.value = emptyScoreDistribution()
+    scoreDistributionError.value = '加载成绩分布失败，请稍后重试'
+    ElMessage.error('加载成绩分布失败')
+  } finally {
+    scoreDistributionLoading.value = false
+  }
+}
 const examDialogVisible = ref(false)
 const questionDialogVisible = ref(false)
 const examTimeRange = ref([])
@@ -388,16 +454,19 @@ const loadExams = async () => {
 const selectExam = async (exam) => {
   if (!exam) return
   selectedExam.value = exam
+  scoreDistribution.value = emptyScoreDistribution()
+  scoreDistributionError.value = ''
   await refreshSelected()
 }
 
 const refreshSelected = async () => {
   if (!selectedExam.value) return
+  const examId = selectedExam.value.id
   try {
     const [detailRes, statRes, scoreRes] = await Promise.all([
-      examApi.getDetail(selectedExam.value.id),
-      examApi.getStatistics(selectedExam.value.id),
-      examApi.getStudentScores(selectedExam.value.id)
+      examApi.getDetail(examId),
+      examApi.getStatistics(examId),
+      examApi.getStudentScores(examId)
     ])
     questions.value = detailRes.data.questions || []
     statistics.value = statRes.data || {}
@@ -406,6 +475,7 @@ const refreshSelected = async () => {
     console.error('Failed to refresh teacher monitor:', error)
     ElMessage.error('刷新考试监控失败')
   }
+  await loadScoreDistribution(examId)
 }
 
 const openExamDialog = (exam = null) => {
@@ -693,8 +763,21 @@ onBeforeUnmount(() => {
   margin-top: 16px;
 }
 
+.distribution-row {
+  margin-top: 16px;
+}
+
 .detail-row {
   margin-top: 16px;
+}
+
+.dist-alert {
+  margin-bottom: 12px;
+}
+
+.score-dist-hint {
+  margin: 12px 0 0;
+  font-size: 12px;
 }
 
 .stat-grid {

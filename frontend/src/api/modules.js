@@ -63,6 +63,9 @@ export const examApi = {
   getStatistics(id) {
     return api.get(`/exam/teacher/${id}/statistics`)
   },
+  getScoreDistribution(examId) {
+    return api.get(`/exam/teacher/${examId}/score-distribution`)
+  },
   getStudentScores(id) {
     return api.get(`/exam/teacher/${id}/records`)
   }

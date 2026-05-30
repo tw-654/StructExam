@@ -1,5 +1,7 @@
 package com.structexam.exam.dto;
 
+import java.util.List;
+
 public class ExamStatisticsDTO {
     private Long examId;
     private String title;
@@ -10,6 +12,9 @@ public class ExamStatisticsDTO {
     private Double averageScore;
     private Integer maxScore;
     private Integer minScore;
+
+    /** 按得分率分段的成绩分布 */
+    private List<ScoreDistributionBucketDTO> scoreDistribution;
 
     public Long getExamId() {
         return examId;
@@ -81,5 +86,13 @@ public class ExamStatisticsDTO {
 
     public void setMinScore(Integer minScore) {
         this.minScore = minScore;
+    }
+
+    public List<ScoreDistributionBucketDTO> getScoreDistribution() {
+        return scoreDistribution;
+    }
+
+    public void setScoreDistribution(List<ScoreDistributionBucketDTO> scoreDistribution) {
+        this.scoreDistribution = scoreDistribution;
     }
 }

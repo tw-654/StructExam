@@ -13,6 +13,7 @@ import com.structexam.exam.dto.ExamSaveRequest;
 import com.structexam.exam.dto.ExamStatisticsDTO;
 import com.structexam.exam.dto.QuestionDTO;
 import com.structexam.exam.dto.QuestionSaveRequest;
+import com.structexam.exam.dto.ScoreDistributionBucketDTO;
 import com.structexam.exam.dto.StudentScoreDTO;
 import com.structexam.exam.mapper.CodeSubmissionMapper;
 import com.structexam.exam.mapper.ExamMapper;
@@ -26,6 +27,8 @@ import java.time.LocalDateTime;
 import java.time.Duration;
 import java.time.ZoneId;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -383,7 +386,19 @@ public class ExamService {
         dto.setAverageScore(scores.isEmpty() ? 0D : scores.stream().mapToInt(Integer::intValue).average().orElse(0D));
         dto.setMaxScore(scores.isEmpty() ? 0 : scores.stream().mapToInt(Integer::intValue).max().orElse(0));
         dto.setMinScore(scores.isEmpty() ? 0 : scores.stream().mapToInt(Integer::intValue).min().orElse(0));
+        dto.setScoreDistribution(buildScoreDistribution(exam, records));
         return dto;
+    }
+
+    /**
+     * 按得分率统计某场考试的成绩分布（教师/管理员）。
+     * 得分率 = 学生实际得分 / 试卷总分 × 100。
+     */
+    public List<ScoreDistributionBucketDTO> getScoreDistribution(Long examId, Long teacherId) {
+        Exam exam = getTeacherOwnedExam(examId, teacherId);
+        List<ExamRecord> records = examRecordMapper.selectList(new LambdaQueryWrapper<ExamRecord>()
+                .eq(ExamRecord::getExamId, examId));
+        return buildScoreDistribution(exam, records);
     }
 
     public int gradeObjective(Long examId, Long teacherId) {
@@ -420,6 +435,98 @@ public class ExamService {
             examRecordMapper.updateById(record);
         }
         return records.size();
+    }
+
+    private static final List<String> SCORE_RATE_RANGES = Arrays.asList(
+            "<60%", "60%-70%", "70%-80%", "80%-90%", "90%-100%");
+
+    private List<ScoreDistributionBucketDTO> buildScoreDistribution(Exam exam, List<ExamRecord> records) {
+        Map<String, Integer> bucketCounts = new LinkedHashMap<>();
+        for (String range : SCORE_RATE_RANGES) {
+            bucketCounts.put(range, 0);
+        }
+
+        int paperTotalScore = resolvePaperTotalScore(exam);
+        if (paperTotalScore <= 0 || records == null || records.isEmpty()) {
+            return toDistributionList(bucketCounts);
+        }
+
+        Map<Long, List<CodeSubmission>> submissionsByUser = codeSubmissionMapper.selectList(
+                        new LambdaQueryWrapper<CodeSubmission>()
+                                .eq(CodeSubmission::getExamId, exam.getId()))
+                .stream()
+                .collect(Collectors.groupingBy(CodeSubmission::getUserId));
+
+        for (ExamRecord record : records) {
+            int studentTotalScore = resolveStudentTotalScore(
+                    record, submissionsByUser.getOrDefault(record.getUserId(), List.of()));
+            double scoreRatePercent = (double) studentTotalScore / paperTotalScore * 100.0;
+            String rangeLabel = resolveScoreRateRange(scoreRatePercent);
+            bucketCounts.merge(rangeLabel, 1, Integer::sum);
+        }
+
+        return toDistributionList(bucketCounts);
+    }
+
+    /**
+     * 试卷总分：优先 t_exam.total_score，否则对该试卷下题目分值求和。
+     */
+    private int resolvePaperTotalScore(Exam exam) {
+        if (exam.getTotalScore() != null && exam.getTotalScore() > 0) {
+            return exam.getTotalScore();
+        }
+        List<Question> questions = questionMapper.selectList(
+                new LambdaQueryWrapper<Question>()
+                        .eq(Question::getExamId, exam.getId()));
+        return questions.stream()
+                .mapToInt(q -> q.getScore() != null ? q.getScore() : 0)
+                .sum();
+    }
+
+    /**
+     * 学生实际得分：优先 t_exam_record.score，否则对该生各题提交得分按题目取最高后求和。
+     */
+    private int resolveStudentTotalScore(ExamRecord record, List<CodeSubmission> submissions) {
+        if (record.getScore() != null) {
+            return Math.max(record.getScore(), 0);
+        }
+        if (submissions == null || submissions.isEmpty()) {
+            return 0;
+        }
+        return submissions.stream()
+                .collect(Collectors.groupingBy(
+                        CodeSubmission::getQuestionId,
+                        Collectors.mapping(
+                                s -> s.getScore() != null ? s.getScore() : 0,
+                                Collectors.maxBy(Integer::compareTo))))
+                .values()
+                .stream()
+                .mapToInt(opt -> opt.orElse(0))
+                .sum();
+    }
+
+    private String resolveScoreRateRange(double scoreRatePercent) {
+        if (scoreRatePercent < 60) {
+            return "<60%";
+        }
+        if (scoreRatePercent < 70) {
+            return "60%-70%";
+        }
+        if (scoreRatePercent < 80) {
+            return "70%-80%";
+        }
+        if (scoreRatePercent < 90) {
+            return "80%-90%";
+        }
+        return "90%-100%";
+    }
+
+    private List<ScoreDistributionBucketDTO> toDistributionList(Map<String, Integer> bucketCounts) {
+        List<ScoreDistributionBucketDTO> result = new ArrayList<>();
+        for (String range : SCORE_RATE_RANGES) {
+            result.add(new ScoreDistributionBucketDTO(range, bucketCounts.getOrDefault(range, 0)));
+        }
+        return result;
     }
 
     private Exam getTeacherOwnedExam(Long examId, Long teacherId) {
