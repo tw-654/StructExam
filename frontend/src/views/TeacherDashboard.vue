@@ -339,9 +339,9 @@
           </template>
         </el-table-column>
 
-        <el-table-column label="分值" width="90" align="center">
+        <el-table-column label="权重" width="90" align="center">
           <template #default="{ row }">
-            <el-input-number v-model="row.score" :min="0" :max="100" size="small" controls-position="right" />
+            <el-input-number v-model="row.weight" :min="0" :max="100" size="small" controls-position="right" />
           </template>
         </el-table-column>
 
@@ -573,7 +573,7 @@ const openTestCaseDialog = async (question) => {
       inputData: tc.inputData || '',
       expectedOutput: tc.expectedOutput || '',
       isPublic: !!tc.isPublic,
-      score: tc.score ?? 0,
+      weight: tc.weight ?? 1,
       timeLimitMs: tc.timeLimitMs ?? null,
       sortOrder: tc.sortOrder ?? 0
     }))
@@ -590,7 +590,7 @@ const addTestCaseRow = () => {
     inputData: '',
     expectedOutput: '',
     isPublic: true,
-    score: 0,
+    weight: 1,
     timeLimitMs: null,
     sortOrder: testCases.value.length + 1
   })
@@ -609,7 +609,7 @@ const saveTestCases = async () => {
       inputData: tc.inputData,
       expectedOutput: tc.expectedOutput,
       isPublic: tc.isPublic,
-      score: tc.score || 0,
+      weight: tc.weight ?? 1,
       timeLimitMs: tc.timeLimitMs || null,
       sortOrder: idx + 1
     }))

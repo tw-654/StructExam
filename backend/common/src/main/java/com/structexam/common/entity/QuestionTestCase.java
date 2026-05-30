@@ -20,7 +20,7 @@ public class QuestionTestCase extends BaseEntity {
 
     private Boolean isPublic;
 
-    private Integer score;
+    private Integer weight;
 
     private Integer timeLimitMs;
 
@@ -52,8 +52,8 @@ public class QuestionTestCase extends BaseEntity {
     public Boolean getIsPublic() { return isPublic; }
     public void setIsPublic(Boolean isPublic) { this.isPublic = isPublic; }
 
-    public Integer getScore() { return score; }
-    public void setScore(Integer score) { this.score = score; }
+    public Integer getWeight() { return weight; }
+    public void setWeight(Integer weight) { this.weight = weight; }
 
     public Integer getTimeLimitMs() { return timeLimitMs; }
     public void setTimeLimitMs(Integer timeLimitMs) { this.timeLimitMs = timeLimitMs; }

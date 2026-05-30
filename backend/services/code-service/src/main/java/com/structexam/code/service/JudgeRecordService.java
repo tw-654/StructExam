@@ -99,84 +99,90 @@ public class JudgeRecordService {
         List<JudgeCaseResult> caseEntities = new ArrayList<>();
 
         int passedCount = 0;
-        int caseScore = 0;
+        int passedWeightSum = 0;
+        int totalWeightSum = 0;
 
         // 全局任务状态标志，供逐条用例的判定服务使用
         String overallStatus = result.getStatus() != null ? result.getStatus().name() : "";
         boolean isOverallCE = JudgeTaskStatus.CE.name().equals(overallStatus);
         boolean isOverallRE = JudgeTaskStatus.RE.name().equals(overallStatus);
 
-        if (testResults != null) {
-            for (int i = 0; i < testResults.size(); i++) {
-                CodeExecuteResponse.TestResult tr = testResults.get(i);
-                JudgeCaseResult cr = new JudgeCaseResult();
-                cr.setJudgeRecordId(rec.getId());
-                cr.setCaseIndex(i);
+        int configuredTotal = sourceCases.size();
+        int sandboxCount = testResults != null ? testResults.size() : 0;
+        // 以题目配置的用例数为准；无 DB 用例时退化为沙箱返回条数
+        int totalCases = configuredTotal > 0 ? configuredTotal : sandboxCount;
 
-                // 从题目配置中取用例元信息（时间限制、内存限制、分值等）
-                Long timeLimitMs  = null;
-                Long memLimitKb   = null;
-                if (i < sourceCases.size()) {
-                    QuestionTestCase src = sourceCases.get(i);
-                    cr.setTestCaseId(src.getId());
-                    cr.setCaseName(src.getCaseName());
-                    cr.setIsPublic(Boolean.TRUE.equals(src.getIsPublic()));
-                    cr.setScore(src.getScore() != null ? src.getScore() : 0);
-                    timeLimitMs = src.getTimeLimitMs() != null ? src.getTimeLimitMs().longValue() : null;
-                    memLimitKb  = src.getMemoryLimitKb() != null ? src.getMemoryLimitKb().longValue() : null;
-                } else {
-                    // 来自 options JSON fallback 或自定义输入，按公开处理
-                    cr.setIsPublic(true);
-                    cr.setScore(0);
-                }
+        for (int i = 0; i < totalCases; i++) {
+            CodeExecuteResponse.TestResult tr = (testResults != null && i < sandboxCount)
+                    ? testResults.get(i) : null;
 
-                // 调用核心判定服务（自主标准化 + 超时/RE/CE 推断，不依赖沙箱 isPassed()）
-                CaseJudgeRequest judgeReq = CaseJudgeRequest.builder()
-                        .actualOutput(tr.getActualOutput())
-                        .expectedOutput(tr.getExpectedOutput())
-                        .timeUsedMs(tr.getExecutionTime())
-                        .timeLimitMs(timeLimitMs)
-                        .memoryLimitKb(memLimitKb)
-                        .compileError(isOverallCE)
-                        .runtimeError(isOverallRE)
-                        .errorMessage(result.getError())
-                        .build();
-                CaseJudgeResult judged = testCaseJudgeService.judge(judgeReq);
+            JudgeCaseResult cr = new JudgeCaseResult();
+            cr.setJudgeRecordId(rec.getId());
+            cr.setCaseIndex(i);
 
-                cr.setPassed(judged.isPassed());
-                cr.setStatus(judged.getStatus().dbCode());
-                cr.setInputData(tr.getInput());
-                cr.setExpectedOutput(judged.getNormalizedExpected());
-                cr.setActualOutput(judged.getNormalizedActual());
-                cr.setTimeUsedMs(tr.getExecutionTime());
-                if (judged.getErrorMessage() != null) {
-                    cr.setErrorMessage(judged.getErrorMessage());
-                }
-
-                if (judged.isPassed()) {
-                    passedCount++;
-                    caseScore += (cr.getScore() != null ? cr.getScore() : 0);
-                }
-                caseEntities.add(cr);
+            Long timeLimitMs = null;
+            Long memLimitKb = null;
+            if (i < sourceCases.size()) {
+                QuestionTestCase src = sourceCases.get(i);
+                cr.setTestCaseId(src.getId());
+                cr.setCaseName(src.getCaseName());
+                cr.setIsPublic(Boolean.TRUE.equals(src.getIsPublic()));
+                cr.setWeight(src.getWeight() != null ? src.getWeight() : 1);
+                timeLimitMs = src.getTimeLimitMs() != null ? src.getTimeLimitMs().longValue() : null;
+                memLimitKb = src.getMemoryLimitKb() != null ? src.getMemoryLimitKb().longValue() : null;
+            } else {
+                cr.setIsPublic(true);
+                cr.setWeight(1);
             }
+
+            int caseWeight = scoringWeight(cr.getWeight());
+            totalWeightSum += caseWeight;
+
+            if (tr == null) {
+                cr.setPassed(false);
+                cr.setStatus("SKIP");
+                cr.setErrorMessage("未执行到该用例");
+                caseEntities.add(cr);
+                continue;
+            }
+
+            CaseJudgeRequest judgeReq = CaseJudgeRequest.builder()
+                    .actualOutput(tr.getActualOutput())
+                    .expectedOutput(tr.getExpectedOutput())
+                    .timeUsedMs(tr.getExecutionTime())
+                    .timeLimitMs(timeLimitMs)
+                    .memoryLimitKb(memLimitKb)
+                    .compileError(isOverallCE)
+                    .runtimeError(isOverallRE)
+                    .errorMessage(result.getError())
+                    .build();
+            CaseJudgeResult judged = testCaseJudgeService.judge(judgeReq);
+
+            cr.setPassed(judged.isPassed());
+            cr.setStatus(judged.getStatus().dbCode());
+            cr.setInputData(tr.getInput());
+            cr.setExpectedOutput(judged.getNormalizedExpected());
+            cr.setActualOutput(judged.getNormalizedActual());
+            cr.setTimeUsedMs(tr.getExecutionTime());
+            if (judged.getErrorMessage() != null) {
+                cr.setErrorMessage(judged.getErrorMessage());
+            }
+
+            if (judged.isPassed()) {
+                passedCount++;
+                passedWeightSum += caseWeight;
+            }
+            caseEntities.add(cr);
         }
 
         String statusName = result.getStatus() != null ? result.getStatus().name() : "FAILED";
         int maxScore = task.getMaxScore() != null ? task.getMaxScore() : 0;
-        boolean allPassed = passedCount > 0 && testResults != null && passedCount == testResults.size();
-        int finalScore;
-        if (JudgeTaskStatus.AC.name().equals(statusName)) {
-            finalScore = maxScore;
-        } else if (allPassed) {
-            finalScore = maxScore;
-            statusName = JudgeTaskStatus.AC.name();
-        } else {
-            finalScore = caseScore;
-        }
+        int finalScore = computeQuestionScore(
+                passedWeightSum, totalWeightSum, maxScore, statusName, passedCount, totalCases);
 
         // 更新 JudgeRecord
         rec.setJudgeStatus(statusName);
-        rec.setTotalCases(testResults != null ? testResults.size() : 0);
+        rec.setTotalCases(totalCases);
         rec.setPassedCases(passedCount);
         rec.setScore(finalScore);
         rec.setMaxScore(maxScore);
@@ -201,7 +207,7 @@ public class JudgeRecordService {
     }
 
     /**
-     * 学生侧：查询某题最近一次判题（含逐条用例，非公开失败用例脱敏）。
+     * 学生侧：查询某题最近一次判题（仅聚合结果，不返回逐条用例 IO）。
      */
     public JudgeRecordVO getLatestForStudent(Long examId, Long userId, Long questionId) {
         JudgeRecord rec = recordMapper.selectOne(
@@ -268,14 +274,41 @@ public class JudgeRecordService {
         vo.setJudgeMessage(rec.getJudgeMessage());
         vo.setFinishedTime(rec.getFinishedTime());
 
-        List<JudgeCaseResult> cases = caseResultMapper.selectList(
-                new LambdaQueryWrapper<JudgeCaseResult>()
-                        .eq(JudgeCaseResult::getJudgeRecordId, rec.getId())
-                        .orderByAsc(JudgeCaseResult::getCaseIndex));
-        vo.setCases(cases.stream()
-                .map(cr -> toCaseVO(cr, fullDetail))
-                .collect(Collectors.toList()));
+        if (fullDetail) {
+            List<JudgeCaseResult> cases = caseResultMapper.selectList(
+                    new LambdaQueryWrapper<JudgeCaseResult>()
+                            .eq(JudgeCaseResult::getJudgeRecordId, rec.getId())
+                            .orderByAsc(JudgeCaseResult::getCaseIndex));
+            vo.setCases(cases.stream()
+                    .map(cr -> toCaseVO(cr, true))
+                    .collect(Collectors.toList()));
+        }
         return vo;
+    }
+
+    /**
+     * 题目得分 = (通过用例权重之和 / 全部用例权重之和) × 题目分值。
+     * 编译/运行错误为 0；权重之和为 0 时按通过用例个数比例折算。
+     */
+    static int computeQuestionScore(int passedWeightSum, int totalWeightSum, int maxScore,
+                                    String statusName, int passedCount, int totalCases) {
+        if (maxScore <= 0) {
+            return 0;
+        }
+        if (JudgeTaskStatus.CE.name().equals(statusName) || JudgeTaskStatus.RE.name().equals(statusName)) {
+            return 0;
+        }
+        if (totalWeightSum > 0) {
+            return (int) Math.round((double) passedWeightSum / totalWeightSum * maxScore);
+        }
+        if (totalCases > 0) {
+            return (int) Math.round((double) passedCount / totalCases * maxScore);
+        }
+        return 0;
+    }
+
+    private static int scoringWeight(Integer weight) {
+        return (weight != null && weight > 0) ? weight : 1;
     }
 
     private JudgeCaseResultVO toCaseVO(JudgeCaseResult cr, boolean fullDetail) {
@@ -287,7 +320,7 @@ public class JudgeRecordService {
         vo.setIsPublic(cr.getIsPublic());
         vo.setTimeUsedMs(cr.getTimeUsedMs());
         vo.setMemoryUsedKb(cr.getMemoryUsedKb());
-        vo.setScore(cr.getScore());
+        vo.setScore(cr.getWeight());
 
         // 错误消息对所有人可见
         vo.setErrorMessage(cr.getErrorMessage());
