@@ -90,35 +90,6 @@ CREATE TABLE IF NOT EXISTS t_code_submission (
     INDEX idx_status (status)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='代码提交表';
 
--- 测试用例表
-CREATE TABLE IF NOT EXISTS t_question_test_case (
-    id BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '用例ID',
-    question_id BIGINT NOT NULL COMMENT '题目ID',
-    input_data TEXT COMMENT '输入数据',
-    expected_output TEXT COMMENT '预期输出',
-    is_sample BOOLEAN DEFAULT FALSE COMMENT '是否为样例',
-    sort_order INT NOT NULL DEFAULT 0 COMMENT '排序',
-    create_time DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
-    update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
-    INDEX idx_question (question_id)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='测试用例表';
-
--- 判题记录表
-CREATE TABLE IF NOT EXISTS t_judge_record (
-    id BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '记录ID',
-    submission_id BIGINT NOT NULL COMMENT '提交ID',
-    test_case_id BIGINT COMMENT '测试用例ID',
-    status VARCHAR(50) COMMENT '判题状态',
-    input_data TEXT COMMENT '输入数据',
-    expected_output TEXT COMMENT '预期输出',
-    actual_output TEXT COMMENT '实际输出',
-    error_message TEXT COMMENT '错误信息',
-    time_used_ms BIGINT COMMENT '耗时(毫秒)',
-    memory_used_kb BIGINT COMMENT '内存使用(KB)',
-    create_time DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
-    INDEX idx_submission (submission_id)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='判题记录表';
-
 -- 插入测试数据
 
 -- BCrypt加密的 "StructExam123" (cost=10)
@@ -129,6 +100,69 @@ INSERT INTO t_user (username, password, real_name, role, email, status) VALUES
 ('student01', '$2a$10$HFvtoQ1Ud7sbXfJsQzHP2eQwT80KXyWvHHColl5rCicNZkK.hy8UW', '学生张三', 'STUDENT', 'student01@structexam.com', 1),
 ('student02', '$2a$10$HFvtoQ1Ud7sbXfJsQzHP2eQwT80KXyWvHHColl5rCicNZkK.hy8UW', '学生李四', 'STUDENT', 'student02@structexam.com', 1),
 ('jmeter_docker_01', '$2a$10$HFvtoQ1Ud7sbXfJsQzHP2eQwT80KXyWvHHColl5rCicNZkK.hy8UW', '测试用户', 'STUDENT', 'jmeter@structexam.com', 1);
+
+-- JMeter性能测试用户账号 (perf_user_X_1000 格式，共60个)
+INSERT INTO t_user (username, password, real_name, role, email, status) VALUES
+('perf_user_1_1000', '$2a$10$HFvtoQ1Ud7sbXfJsQzHP2eQwT80KXyWvHHColl5rCicNZkK.hy8UW', '性能测试用户1', 'STUDENT', 'perf1@structexam.com', 1),
+('perf_user_2_1000', '$2a$10$HFvtoQ1Ud7sbXfJsQzHP2eQwT80KXyWvHHColl5rCicNZkK.hy8UW', '性能测试用户2', 'STUDENT', 'perf2@structexam.com', 1),
+('perf_user_3_1000', '$2a$10$HFvtoQ1Ud7sbXfJsQzHP2eQwT80KXyWvHHColl5rCicNZkK.hy8UW', '性能测试用户3', 'STUDENT', 'perf3@structexam.com', 1),
+('perf_user_4_1000', '$2a$10$HFvtoQ1Ud7sbXfJsQzHP2eQwT80KXyWvHHColl5rCicNZkK.hy8UW', '性能测试用户4', 'STUDENT', 'perf4@structexam.com', 1),
+('perf_user_5_1000', '$2a$10$HFvtoQ1Ud7sbXfJsQzHP2eQwT80KXyWvHHColl5rCicNZkK.hy8UW', '性能测试用户5', 'STUDENT', 'perf5@structexam.com', 1),
+('perf_user_6_1000', '$2a$10$HFvtoQ1Ud7sbXfJsQzHP2eQwT80KXyWvHHColl5rCicNZkK.hy8UW', '性能测试用户6', 'STUDENT', 'perf6@structexam.com', 1),
+('perf_user_7_1000', '$2a$10$HFvtoQ1Ud7sbXfJsQzHP2eQwT80KXyWvHHColl5rCicNZkK.hy8UW', '性能测试用户7', 'STUDENT', 'perf7@structexam.com', 1),
+('perf_user_8_1000', '$2a$10$HFvtoQ1Ud7sbXfJsQzHP2eQwT80KXyWvHHColl5rCicNZkK.hy8UW', '性能测试用户8', 'STUDENT', 'perf8@structexam.com', 1),
+('perf_user_9_1000', '$2a$10$HFvtoQ1Ud7sbXfJsQzHP2eQwT80KXyWvHHColl5rCicNZkK.hy8UW', '性能测试用户9', 'STUDENT', 'perf9@structexam.com', 1),
+('perf_user_10_1000', '$2a$10$HFvtoQ1Ud7sbXfJsQzHP2eQwT80KXyWvHHColl5rCicNZkK.hy8UW', '性能测试用户10', 'STUDENT', 'perf10@structexam.com', 1),
+('perf_user_11_1000', '$2a$10$HFvtoQ1Ud7sbXfJsQzHP2eQwT80KXyWvHHColl5rCicNZkK.hy8UW', '性能测试用户11', 'STUDENT', 'perf11@structexam.com', 1),
+('perf_user_12_1000', '$2a$10$HFvtoQ1Ud7sbXfJsQzHP2eQwT80KXyWvHHColl5rCicNZkK.hy8UW', '性能测试用户12', 'STUDENT', 'perf12@structexam.com', 1),
+('perf_user_13_1000', '$2a$10$HFvtoQ1Ud7sbXfJsQzHP2eQwT80KXyWvHHColl5rCicNZkK.hy8UW', '性能测试用户13', 'STUDENT', 'perf13@structexam.com', 1),
+('perf_user_14_1000', '$2a$10$HFvtoQ1Ud7sbXfJsQzHP2eQwT80KXyWvHHColl5rCicNZkK.hy8UW', '性能测试用户14', 'STUDENT', 'perf14@structexam.com', 1),
+('perf_user_15_1000', '$2a$10$HFvtoQ1Ud7sbXfJsQzHP2eQwT80KXyWvHHColl5rCicNZkK.hy8UW', '性能测试用户15', 'STUDENT', 'perf15@structexam.com', 1),
+('perf_user_16_1000', '$2a$10$HFvtoQ1Ud7sbXfJsQzHP2eQwT80KXyWvHHColl5rCicNZkK.hy8UW', '性能测试用户16', 'STUDENT', 'perf16@structexam.com', 1),
+('perf_user_17_1000', '$2a$10$HFvtoQ1Ud7sbXfJsQzHP2eQwT80KXyWvHHColl5rCicNZkK.hy8UW', '性能测试用户17', 'STUDENT', 'perf17@structexam.com', 1),
+('perf_user_18_1000', '$2a$10$HFvtoQ1Ud7sbXfJsQzHP2eQwT80KXyWvHHColl5rCicNZkK.hy8UW', '性能测试用户18', 'STUDENT', 'perf18@structexam.com', 1),
+('perf_user_19_1000', '$2a$10$HFvtoQ1Ud7sbXfJsQzHP2eQwT80KXyWvHHColl5rCicNZkK.hy8UW', '性能测试用户19', 'STUDENT', 'perf19@structexam.com', 1),
+('perf_user_20_1000', '$2a$10$HFvtoQ1Ud7sbXfJsQzHP2eQwT80KXyWvHHColl5rCicNZkK.hy8UW', '性能测试用户20', 'STUDENT', 'perf20@structexam.com', 1),
+('perf_user_21_1000', '$2a$10$HFvtoQ1Ud7sbXfJsQzHP2eQwT80KXyWvHHColl5rCicNZkK.hy8UW', '性能测试用户21', 'STUDENT', 'perf21@structexam.com', 1),
+('perf_user_22_1000', '$2a$10$HFvtoQ1Ud7sbXfJsQzHP2eQwT80KXyWvHHColl5rCicNZkK.hy8UW', '性能测试用户22', 'STUDENT', 'perf22@structexam.com', 1),
+('perf_user_23_1000', '$2a$10$HFvtoQ1Ud7sbXfJsQzHP2eQwT80KXyWvHHColl5rCicNZkK.hy8UW', '性能测试用户23', 'STUDENT', 'perf23@structexam.com', 1),
+('perf_user_24_1000', '$2a$10$HFvtoQ1Ud7sbXfJsQzHP2eQwT80KXyWvHHColl5rCicNZkK.hy8UW', '性能测试用户24', 'STUDENT', 'perf24@structexam.com', 1),
+('perf_user_25_1000', '$2a$10$HFvtoQ1Ud7sbXfJsQzHP2eQwT80KXyWvHHColl5rCicNZkK.hy8UW', '性能测试用户25', 'STUDENT', 'perf25@structexam.com', 1),
+('perf_user_26_1000', '$2a$10$HFvtoQ1Ud7sbXfJsQzHP2eQwT80KXyWvHHColl5rCicNZkK.hy8UW', '性能测试用户26', 'STUDENT', 'perf26@structexam.com', 1),
+('perf_user_27_1000', '$2a$10$HFvtoQ1Ud7sbXfJsQzHP2eQwT80KXyWvHHColl5rCicNZkK.hy8UW', '性能测试用户27', 'STUDENT', 'perf27@structexam.com', 1),
+('perf_user_28_1000', '$2a$10$HFvtoQ1Ud7sbXfJsQzHP2eQwT80KXyWvHHColl5rCicNZkK.hy8UW', '性能测试用户28', 'STUDENT', 'perf28@structexam.com', 1),
+('perf_user_29_1000', '$2a$10$HFvtoQ1Ud7sbXfJsQzHP2eQwT80KXyWvHHColl5rCicNZkK.hy8UW', '性能测试用户29', 'STUDENT', 'perf29@structexam.com', 1),
+('perf_user_30_1000', '$2a$10$HFvtoQ1Ud7sbXfJsQzHP2eQwT80KXyWvHHColl5rCicNZkK.hy8UW', '性能测试用户30', 'STUDENT', 'perf30@structexam.com', 1),
+('perf_user_31_1000', '$2a$10$HFvtoQ1Ud7sbXfJsQzHP2eQwT80KXyWvHHColl5rCicNZkK.hy8UW', '性能测试用户31', 'STUDENT', 'perf31@structexam.com', 1),
+('perf_user_32_1000', '$2a$10$HFvtoQ1Ud7sbXfJsQzHP2eQwT80KXyWvHHColl5rCicNZkK.hy8UW', '性能测试用户32', 'STUDENT', 'perf32@structexam.com', 1),
+('perf_user_33_1000', '$2a$10$HFvtoQ1Ud7sbXfJsQzHP2eQwT80KXyWvHHColl5rCicNZkK.hy8UW', '性能测试用户33', 'STUDENT', 'perf33@structexam.com', 1),
+('perf_user_34_1000', '$2a$10$HFvtoQ1Ud7sbXfJsQzHP2eQwT80KXyWvHHColl5rCicNZkK.hy8UW', '性能测试用户34', 'STUDENT', 'perf34@structexam.com', 1),
+('perf_user_35_1000', '$2a$10$HFvtoQ1Ud7sbXfJsQzHP2eQwT80KXyWvHHColl5rCicNZkK.hy8UW', '性能测试用户35', 'STUDENT', 'perf35@structexam.com', 1),
+('perf_user_36_1000', '$2a$10$HFvtoQ1Ud7sbXfJsQzHP2eQwT80KXyWvHHColl5rCicNZkK.hy8UW', '性能测试用户36', 'STUDENT', 'perf36@structexam.com', 1),
+('perf_user_37_1000', '$2a$10$HFvtoQ1Ud7sbXfJsQzHP2eQwT80KXyWvHHColl5rCicNZkK.hy8UW', '性能测试用户37', 'STUDENT', 'perf37@structexam.com', 1),
+('perf_user_38_1000', '$2a$10$HFvtoQ1Ud7sbXfJsQzHP2eQwT80KXyWvHHColl5rCicNZkK.hy8UW', '性能测试用户38', 'STUDENT', 'perf38@structexam.com', 1),
+('perf_user_39_1000', '$2a$10$HFvtoQ1Ud7sbXfJsQzHP2eQwT80KXyWvHHColl5rCicNZkK.hy8UW', '性能测试用户39', 'STUDENT', 'perf39@structexam.com', 1),
+('perf_user_40_1000', '$2a$10$HFvtoQ1Ud7sbXfJsQzHP2eQwT80KXyWvHHColl5rCicNZkK.hy8UW', '性能测试用户40', 'STUDENT', 'perf40@structexam.com', 1),
+('perf_user_41_1000', '$2a$10$HFvtoQ1Ud7sbXfJsQzHP2eQwT80KXyWvHHColl5rCicNZkK.hy8UW', '性能测试用户41', 'STUDENT', 'perf41@structexam.com', 1),
+('perf_user_42_1000', '$2a$10$HFvtoQ1Ud7sbXfJsQzHP2eQwT80KXyWvHHColl5rCicNZkK.hy8UW', '性能测试用户42', 'STUDENT', 'perf42@structexam.com', 1),
+('perf_user_43_1000', '$2a$10$HFvtoQ1Ud7sbXfJsQzHP2eQwT80KXyWvHHColl5rCicNZkK.hy8UW', '性能测试用户43', 'STUDENT', 'perf43@structexam.com', 1),
+('perf_user_44_1000', '$2a$10$HFvtoQ1Ud7sbXfJsQzHP2eQwT80KXyWvHHColl5rCicNZkK.hy8UW', '性能测试用户44', 'STUDENT', 'perf44@structexam.com', 1),
+('perf_user_45_1000', '$2a$10$HFvtoQ1Ud7sbXfJsQzHP2eQwT80KXyWvHHColl5rCicNZkK.hy8UW', '性能测试用户45', 'STUDENT', 'perf45@structexam.com', 1),
+('perf_user_46_1000', '$2a$10$HFvtoQ1Ud7sbXfJsQzHP2eQwT80KXyWvHHColl5rCicNZkK.hy8UW', '性能测试用户46', 'STUDENT', 'perf46@structexam.com', 1),
+('perf_user_47_1000', '$2a$10$HFvtoQ1Ud7sbXfJsQzHP2eQwT80KXyWvHHColl5rCicNZkK.hy8UW', '性能测试用户47', 'STUDENT', 'perf47@structexam.com', 1),
+('perf_user_48_1000', '$2a$10$HFvtoQ1Ud7sbXfJsQzHP2eQwT80KXyWvHHColl5rCicNZkK.hy8UW', '性能测试用户48', 'STUDENT', 'perf48@structexam.com', 1),
+('perf_user_49_1000', '$2a$10$HFvtoQ1Ud7sbXfJsQzHP2eQwT80KXyWvHHColl5rCicNZkK.hy8UW', '性能测试用户49', 'STUDENT', 'perf49@structexam.com', 1),
+('perf_user_50_1000', '$2a$10$HFvtoQ1Ud7sbXfJsQzHP2eQwT80KXyWvHHColl5rCicNZkK.hy8UW', '性能测试用户50', 'STUDENT', 'perf50@structexam.com', 1),
+('perf_user_51_1000', '$2a$10$HFvtoQ1Ud7sbXfJsQzHP2eQwT80KXyWvHHColl5rCicNZkK.hy8UW', '性能测试用户51', 'STUDENT', 'perf51@structexam.com', 1),
+('perf_user_52_1000', '$2a$10$HFvtoQ1Ud7sbXfJsQzHP2eQwT80KXyWvHHColl5rCicNZkK.hy8UW', '性能测试用户52', 'STUDENT', 'perf52@structexam.com', 1),
+('perf_user_53_1000', '$2a$10$HFvtoQ1Ud7sbXfJsQzHP2eQwT80KXyWvHHColl5rCicNZkK.hy8UW', '性能测试用户53', 'STUDENT', 'perf53@structexam.com', 1),
+('perf_user_54_1000', '$2a$10$HFvtoQ1Ud7sbXfJsQzHP2eQwT80KXyWvHHColl5rCicNZkK.hy8UW', '性能测试用户54', 'STUDENT', 'perf54@structexam.com', 1),
+('perf_user_55_1000', '$2a$10$HFvtoQ1Ud7sbXfJsQzHP2eQwT80KXyWvHHColl5rCicNZkK.hy8UW', '性能测试用户55', 'STUDENT', 'perf55@structexam.com', 1),
+('perf_user_56_1000', '$2a$10$HFvtoQ1Ud7sbXfJsQzHP2eQwT80KXyWvHHColl5rCicNZkK.hy8UW', '性能测试用户56', 'STUDENT', 'perf56@structexam.com', 1),
+('perf_user_57_1000', '$2a$10$HFvtoQ1Ud7sbXfJsQzHP2eQwT80KXyWvHHColl5rCicNZkK.hy8UW', '性能测试用户57', 'STUDENT', 'perf57@structexam.com', 1),
+('perf_user_58_1000', '$2a$10$HFvtoQ1Ud7sbXfJsQzHP2eQwT80KXyWvHHColl5rCicNZkK.hy8UW', '性能测试用户58', 'STUDENT', 'perf58@structexam.com', 1),
+('perf_user_59_1000', '$2a$10$HFvtoQ1Ud7sbXfJsQzHP2eQwT80KXyWvHHColl5rCicNZkK.hy8UW', '性能测试用户59', 'STUDENT', 'perf59@structexam.com', 1),
+('perf_user_60_1000', '$2a$10$HFvtoQ1Ud7sbXfJsQzHP2eQwT80KXyWvHHColl5rCicNZkK.hy8UW', '性能测试用户60', 'STUDENT', 'perf60@structexam.com', 1);
 
 -- 插入测试试卷
 INSERT INTO t_exam (title, description, duration, total_score, start_time, end_time, status, creator_id) VALUES

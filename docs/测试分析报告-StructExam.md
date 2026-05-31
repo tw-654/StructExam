@@ -4,7 +4,7 @@
 |---------|------|
 | 被测对象 | Docker Compose 全栈 + 学生端/教师端/管理员端（Nginx 静态 + `/api` 代理）+ 网关相关 API |
 | 报告版本 | **6.1**（最新测试结果更新） |
-| 测试执行时间 | **2026-05-28**（基于 `results/` 目录最新数据） |
+| 测试执行时间 | **2026-05-31**（基于 `results/` 目录最新数据） |
 | 关联计划 | `测试计划-StructExam.md`（v5.0） |
 | 关联自动化 | `tests/e2e/*.spec.js`、`tests/jmeter/*.jmx` |
 
@@ -154,7 +154,7 @@
 | 脚本名称 | 样本数 | 通过率 | 平均响应时间 | P95/P99 | 吞吐量 | 结果 | 备注 |
 |----------|--------|--------|--------------|---------|--------|------|------|
 | `exam_high_concurrency.jmx` | 150 | 100% | 88ms | 120ms/1703ms | 15.5 req/s | **通过** | 30线程/30用户，高并发场景 |
-| `api_stability_test.jmx` | 25 | 80% | 33ms | 114ms/164ms | 2.1 req/s | **部分通过** | 代码提交接口100%失败 |
+| `api_stability_test.jmx` | 300 | 100% | 1239ms | 16ms/8355ms | 14.4 req/s | **通过** | API稳定性测试全部通过 |
 | `login-performance-baseline.jmx` | 75 | 97.33% | 2980ms | 6397ms/7103ms | 5.6 req/s | **基本通过** | 登录专项测试，错误率2.67% |
 
 **学生端API性能测试详情（50线程并发）：**
@@ -178,14 +178,22 @@
 | GET /api/exam/{id} | 30 | 100% | 43ms | 12ms | 176ms | 168ms | 175ms |
 | POST /api/code/submit | 30 | 100% | 14ms | 7ms | 38ms | 30ms | 36ms |
 
-**api_stability_test.jmx 详细统计（最新数据）：**
+**api_stability_test.jmx 详细统计（最新数据，60线程并发）：**
 | 接口 | 请求数 | 成功率 | 平均响应时间 | 最小 | P95 | P99 | 最大 |
 |------|--------|--------|--------------|------|-----|-----|------|
-| POST /api/auth/login | 5 | 100% | 121ms | 103ms | 164ms | 164ms | 164ms |
-| GET /api/exam/{id} | 5 | 100% | 11ms | 8ms | 14ms | 14ms | 14ms |
-| GET /api/exam/list | 5 | 100% | 13ms | 8ms | 24ms | 24ms | 24ms |
-| GET /api/code/{exam}/{question} | 5 | 100% | 11ms | 6ms | 21ms | 21ms | 21ms |
-| POST /api/code/submit | 5 | **0%** | 8ms | 6ms | 10ms | 10ms | 10ms |
+| POST /api/auth/login | 60 | 100% | 5829ms | 1502ms | 7773ms | 8105ms | 8355ms |
+| GET /api/exam/{id} | 60 | 100% | 74.5ms | 16ms | 157ms | 228ms | 329ms |
+| GET /api/exam/list | 60 | 100% | 72.8ms | 16ms | 156ms | 245ms | 321ms |
+| GET /api/code/{exam}/{question} | 60 | 100% | 66.6ms | 16ms | 116ms | 179ms | 353ms |
+| POST /api/code/submit | 60 | 100% | 155.6ms | 68ms | 253ms | 359ms | 393ms |
+
+**submit-poll.jmx 详细统计（最新数据，60线程并发）：**
+| 接口 | 请求数 | 成功率 | 平均响应时间 | 最小 | P95 | P99 | 最大 |
+|------|--------|--------|--------------|------|-----|-----|------|
+| POST /api/auth/login | 60 | 100% | 4229ms | 1025ms | 7008ms | 7464ms | 7617ms |
+| POST /api/exam/enter/{id} | 60 | 100% | 81ms | 27ms | 145ms | 186ms | 207ms |
+| POST /api/code/submit | 60 | 100% | 197ms | 76ms | 328ms | 363ms | 439ms |
+| GET /api/code/result/{taskId} | 60 | 100% | 75ms | 19ms | 147ms | 212ms | 285ms |
 
 **登录性能基线测试（login-performance-baseline.jmx，最新数据）：**
 | 指标 | 值 |
@@ -203,7 +211,6 @@
 
 **最新测试数据说明：**
 - `exam_high_concurrency.jmx`：30线程高并发测试，所有接口100%通过，登录接口P95=135ms，表现良好
-- `api_stability_test.jmx`：代码提交接口100%失败，需排查接口实现问题
 - `login-performance-baseline.jmx`：登录专项测试，错误率2.67%，P95=6397ms，符合预期
 
 **JMeter容器化配置说明：**

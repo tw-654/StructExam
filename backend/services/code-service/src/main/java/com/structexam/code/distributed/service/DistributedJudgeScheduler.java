@@ -216,20 +216,7 @@ public class DistributedJudgeScheduler {
         submission.setTimeUsedMs(result.getTimeUsedMs());
         submission.setMemoryUsedKb(result.getMemoryUsedKb());
         submission.setJudgeTime(result.getFinishedTime() == null ? LocalDateTime.now() : result.getFinishedTime());
-<<<<<<< HEAD
         submission.setScore(isAC ? maxScore : 0);
-=======
-        JudgeRecord judgeRecord = judgeRecordMapper.selectOne(
-                new LambdaQueryWrapper<JudgeRecord>().eq(JudgeRecord::getTaskId, task.getTaskId()));
-        if (judgeRecord != null) {
-            submission.setScore(judgeRecord.getScore() != null ? judgeRecord.getScore() : 0);
-            if (judgeRecord.getJudgeStatus() != null) {
-                submission.setJudgeStatus(judgeRecord.getJudgeStatus());
-            }
-        } else {
-            submission.setScore(0);
-        }
->>>>>>> 1abbd4f90e3e6f8003c6005238fe8630ad7a5317
         submission.setJudgeMessage(result.getError());
 
         if (submission.getId() == null) {

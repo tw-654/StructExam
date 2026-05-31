@@ -177,21 +177,8 @@ public class JudgeRecordService {
 
         String statusName = result.getStatus() != null ? result.getStatus().name() : "FAILED";
         int maxScore = task.getMaxScore() != null ? task.getMaxScore() : 0;
-<<<<<<< HEAD
-        boolean allPassed = passedCount > 0 && testResults != null && passedCount == testResults.size();
-        int finalScore;
-        if (JudgeTaskStatus.AC.name().equals(statusName)) {
-            finalScore = maxScore;
-        } else if (allPassed) {
-            finalScore = maxScore;
-            statusName = JudgeTaskStatus.AC.name();
-        } else {
-            finalScore = caseScore;
-        }
-=======
         int finalScore = computeQuestionScore(
                 passedWeightSum, totalWeightSum, maxScore, statusName, passedCount, totalCases);
->>>>>>> 1abbd4f90e3e6f8003c6005238fe8630ad7a5317
 
         // 更新 JudgeRecord
         rec.setJudgeStatus(statusName);
