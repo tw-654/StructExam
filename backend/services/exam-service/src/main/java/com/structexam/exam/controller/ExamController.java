@@ -8,6 +8,7 @@ import com.structexam.exam.dto.ExamDetailDTO;
 import com.structexam.exam.dto.ExamRuntimeDTO;
 import com.structexam.exam.dto.ExamSaveRequest;
 import com.structexam.exam.dto.ExamStatisticsDTO;
+import com.structexam.exam.dto.ScoreDistributionBucketDTO;
 import com.structexam.exam.dto.StudentScoreDTO;
 import com.structexam.exam.service.ExamService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -96,6 +97,15 @@ public class ExamController {
             @RequestHeader("X-User-Role") String role) {
         requireStaff(role);
         return ApiResponse.success(examService.getExamStatistics(id, viewManagerId(role)));
+    }
+
+    @GetMapping("/teacher/{id}/score-distribution")
+    public ApiResponse<List<ScoreDistributionBucketDTO>> getScoreDistribution(
+            @PathVariable Long id,
+            @RequestHeader("X-User-Id") Long teacherId,
+            @RequestHeader("X-User-Role") String role) {
+        requireStaff(role);
+        return ApiResponse.success(examService.getScoreDistribution(id, viewManagerId(role)));
     }
 
     @GetMapping("/teacher/{id}/records")

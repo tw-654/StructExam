@@ -134,7 +134,7 @@ public class QuestionTestCaseService {
         tc.setExpectedOutput(req.getExpectedOutput());
         tc.setIsSample(req.getIsSample() != null ? req.getIsSample() : false);
         tc.setIsPublic(req.getIsPublic() != null ? req.getIsPublic() : false);
-        tc.setScore(req.getScore() != null ? req.getScore() : 0);
+        tc.setWeight(req.getWeight() != null ? req.getWeight() : 1);
         tc.setTimeLimitMs(req.getTimeLimitMs());
         tc.setMemoryLimitKb(req.getMemoryLimitKb());
         tc.setSortOrder(req.getSortOrder() != null ? req.getSortOrder() : 0);
@@ -147,7 +147,7 @@ public class QuestionTestCaseService {
         if (req.getExpectedOutput() != null) tc.setExpectedOutput(req.getExpectedOutput());
         if (req.getIsSample() != null)       tc.setIsSample(req.getIsSample());
         if (req.getIsPublic() != null)       tc.setIsPublic(req.getIsPublic());
-        if (req.getScore() != null)          tc.setScore(req.getScore());
+        if (req.getWeight() != null)         tc.setWeight(req.getWeight());
         if (req.getTimeLimitMs() != null)    tc.setTimeLimitMs(req.getTimeLimitMs());
         if (req.getMemoryLimitKb() != null)  tc.setMemoryLimitKb(req.getMemoryLimitKb());
         if (req.getSortOrder() != null)      tc.setSortOrder(req.getSortOrder());

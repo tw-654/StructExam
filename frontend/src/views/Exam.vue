@@ -72,10 +72,12 @@
             </span>
           </div>
           <div class="terminal-body" ref="terminalRef">
-            <div v-for="(line, index) in terminalLines" :key="index" :class="line.type">
-              <span v-if="line.type === 'input'">&gt;</span>
-              {{ line.content }}
-            </div>
+            <template v-for="(line, index) in terminalLines" :key="index">
+              <pre v-if="line.type === 'error'" class="terminal-line error">{{ line.content }}</pre>
+              <div v-else class="terminal-line" :class="line.type">
+                <span v-if="line.type === 'input'" class="terminal-prompt">&gt;</span>{{ line.content }}
+              </div>
+            </template>
           </div>
         </div>
 
@@ -88,9 +90,12 @@
                 {{ judgeStatusLabel(judgeResult.judgeStatus) }}
               </el-tag>
               <span class="judge-meta" v-if="judgeResult.judgeStatus !== 'JUDGING'">
-                通过 {{ judgeResult.passedCases }}/{{ judgeResult.totalCases }} 个用例 ·
-                得分 {{ judgeResult.score }}/{{ judgeResult.maxScore }} ·
-                耗时 {{ judgeResult.timeUsedMs != null ? judgeResult.timeUsedMs + ' ms' : '-' }}
+                通过 {{ judgePassSummary.passed }}/{{ judgePassSummary.total }} 个用例
+                <template v-if="judgePassSummary.total > 0">
+                  （{{ judgePassSummary.percent }}%）
+                </template>
+                · 得分 {{ judgeResult.score }}/{{ judgeResult.maxScore }}
+                · 耗时 {{ judgeResult.timeUsedMs != null ? judgeResult.timeUsedMs + ' ms' : '-' }}
               </span>
             </div>
             <el-button size="small" plain @click="showJudgeResult = false">关闭</el-button>
@@ -114,42 +119,6 @@
             <pre class="error-pre">{{ judgeResult.runtimeError }}</pre>
           </div>
 
-          <!-- 逐条用例结果 -->
-          <div class="judge-cases" v-if="judgeResult && judgeResult.cases && judgeResult.cases.length">
-            <div
-              v-for="(c, idx) in judgeResult.cases"
-              :key="idx"
-              class="judge-case-item"
-              :class="{ passed: c.passed, failed: !c.passed }"
-            >
-              <div class="case-row">
-                <span class="case-index">用例 {{ idx + 1 }}</span>
-                <el-tag :type="c.passed ? 'success' : 'danger'" size="small">
-                  {{ caseStatusLabel(c.status) }}
-                </el-tag>
-                <span v-if="!c.isPublic && !c.passed" class="hidden-hint">（非公开用例，不显示详情）</span>
-                <span class="case-time" v-if="c.timeUsedMs != null">{{ c.timeUsedMs }} ms</span>
-              </div>
-              <div class="case-detail" v-if="c.isPublic || c.passed">
-                <div class="case-io" v-if="c.inputData">
-                  <span class="io-label">输入</span>
-                  <pre class="io-pre">{{ c.inputData }}</pre>
-                </div>
-                <div class="case-io" v-if="c.expectedOutput">
-                  <span class="io-label">期望</span>
-                  <pre class="io-pre">{{ c.expectedOutput }}</pre>
-                </div>
-                <div class="case-io" v-if="c.actualOutput != null">
-                  <span class="io-label">实际</span>
-                  <pre class="io-pre" :class="{ mismatch: !c.passed }">{{ c.actualOutput }}</pre>
-                </div>
-                <div class="case-io" v-if="c.errorMessage">
-                  <span class="io-label error-label">错误</span>
-                  <pre class="io-pre error-pre">{{ c.errorMessage }}</pre>
-                </div>
-              </div>
-            </div>
-          </div>
         </div>
       </el-main>
     </el-container>
@@ -190,6 +159,14 @@ let judgePollTimer = null
 const showJudgeResult = ref(false)
 const judgeLoading = ref(false)
 const judgeResult = ref(null)
+
+/** 考试页仅展示通过比例，不展示逐条 IO */
+const judgePassSummary = computed(() => {
+  const passed = judgeResult.value?.passedCases ?? 0
+  const total = judgeResult.value?.totalCases ?? 0
+  const percent = total > 0 ? Math.round((passed / total) * 100) : 0
+  return { passed, total, percent }
+})
 
 const currentQuestion = computed(() => questions.value[currentQuestionIndex.value] || {})
 
@@ -435,7 +412,6 @@ const judgeStatusTagType = (status) => ({
   CE: 'danger',
   FAILED: 'danger'
 }[status] || 'info')
-
 const caseStatusLabel = (status) => ({
   AC: 'AC',
   WA: '答案错误',
@@ -802,27 +778,47 @@ onBeforeUnmount(() => {
 
 .terminal-body {
   padding: 12px;
-  min-height: 150px;
-  max-height: 300px;
+  min-height: 2.5rem;
+  height: auto;
+  max-height: min(50vh, 560px);
   overflow-y: auto;
+  overflow-x: auto;
   font-family: Consolas, Monaco, monospace;
   font-size: 14px;
   line-height: 1.5;
 }
 
-.terminal-body .output {
+.terminal-line {
+  margin: 2px 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.terminal-line.output {
   color: #d4d4d4;
-  margin: 2px 0;
 }
 
-.terminal-body .input {
+.terminal-line.input {
   color: #4ec9b0;
-  margin: 2px 0;
 }
 
-.terminal-body .error {
+.terminal-line.error,
+.terminal-body pre.error {
   color: #f14c4c;
-  margin: 2px 0;
+  margin: 4px 0;
+  padding: 0;
+  background: transparent;
+  border: none;
+  font-family: inherit;
+  font-size: inherit;
+  line-height: inherit;
+  white-space: pre-wrap;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+}
+
+.terminal-prompt {
+  margin-right: 4px;
 }
 
 /* ---- 判定结果面板 ---- */
@@ -889,97 +885,10 @@ onBeforeUnmount(() => {
   color: #c0392b;
   margin: 0;
   white-space: pre-wrap;
-  word-break: break-all;
-}
-
-.judge-cases {
-  padding: 12px 16px;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  max-height: 400px;
-  overflow-y: auto;
-}
-
-.judge-case-item {
-  border-radius: 4px;
-  border: 1px solid #ebeef5;
-  overflow: hidden;
-}
-
-.judge-case-item.passed {
-  border-color: #b3e19d;
-}
-
-.judge-case-item.failed {
-  border-color: #fbc4c4;
-}
-
-.case-row {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 8px 12px;
-  background: #fafafa;
-}
-
-.judge-case-item.passed .case-row {
-  background: #f0f9eb;
-}
-
-.judge-case-item.failed .case-row {
-  background: #fef0f0;
-}
-
-.case-index {
-  font-weight: 500;
-  font-size: 13px;
-  min-width: 48px;
-}
-
-.hidden-hint {
-  font-size: 12px;
-  color: #999;
-}
-
-.case-time {
-  margin-left: auto;
-  font-size: 12px;
-  color: #999;
-}
-
-.case-detail {
-  padding: 8px 12px;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.case-io {
-  display: flex;
-  gap: 8px;
-  align-items: flex-start;
-}
-
-.io-label {
-  min-width: 32px;
-  font-size: 12px;
-  color: #666;
-  padding-top: 2px;
-  font-weight: 600;
-}
-
-.io-pre {
-  flex: 1;
-  font-family: Consolas, Monaco, monospace;
-  font-size: 13px;
-  margin: 0;
-  padding: 4px 8px;
-  background: #f5f5f5;
-  border-radius: 3px;
-  white-space: pre-wrap;
-  word-break: break-all;
-  color: #333;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+  max-height: min(50vh, 560px);
+  overflow: auto;
 }
 
 </style>
