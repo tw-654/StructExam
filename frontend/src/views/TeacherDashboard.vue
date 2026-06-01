@@ -152,6 +152,7 @@
       </el-col>
     </el-row>
 
+    <!-- 成绩分布：按「得分率」区间统计人数，数据来自 exam-service /score-distribution -->
     <el-row :gutter="16" class="distribution-row">
       <el-col :span="24">
         <el-card v-loading="scoreDistributionLoading">
@@ -171,6 +172,7 @@
               :closable="false"
               class="dist-alert"
             />
+            <!-- 柱状图组件：props 为固定 5 个区间及人数，切换考试或刷新后自动更新 -->
             <ScoreDistributionChart :data="scoreDistribution" />
             <p class="score-dist-hint muted">
               得分率 = 学生实际得分 ÷ 试卷总分 × 100%；按进入考试的学生记录统计各区间人数。
@@ -202,6 +204,7 @@
             <el-table-column label="操作" width="200">
               <template #default="{ row }">
                 <el-button size="small" @click="openQuestionDialog(row)">编辑</el-button>
+                <!-- 仅编程题可配置判题用例（输入/期望输出/权重等） -->
                 <el-button
                   v-if="row.type === 'PROGRAMMING'"
                   size="small"
@@ -332,7 +335,12 @@
       </template>
     </el-dialog>
 
-    <!-- 测试用例管理对话框 -->
+    <!--
+      测试用例管理（增删改在表格内完成，点「保存全部」一次性提交）：
+      - 列表：GET testCaseApi.listForTeacher
+      - 保存：PUT batchSave，后端 replaceAll 先删旧用例再插入当前表格行
+      - 删除行：仅前端 splice，落库需点保存
+    -->
     <el-dialog
       v-model="testCaseDialogVisible"
       :title="`测试用例管理 — ${testCaseQuestion.title || ''}`"
@@ -367,6 +375,7 @@
           </template>
         </el-table-column>
 
+        <!-- 权重参与编程题得分折算：通过用例权重之和 / 全部用例权重之和 × 题目分值 -->
         <el-table-column label="权重" width="90" align="center">
           <template #default="{ row }">
             <el-input-number v-model="row.weight" :min="0" :max="100" size="small" controls-position="right" />
@@ -411,15 +420,23 @@ const selectedExam = ref(null)
 const questions = ref([])
 const statistics = ref({})
 const studentScores = ref([])
+// ---------- 成绩分布（按得分率区间） ----------
+// 与「学生成绩表」并列展示：成绩表显示原始分数，分布图显示得分率落在哪个区间
 const scoreDistribution = ref([])
 const scoreDistributionLoading = ref(false)
 const scoreDistributionError = ref('')
 
+/** 与后端 ExamService.SCORE_RATE_RANGES 保持一致，保证图表横轴顺序固定 */
 const SCORE_DISTRIBUTION_RANGES = ['<60%', '60%-70%', '70%-80%', '80%-90%', '90%-100%']
 
+/** 接口失败或暂无数据时，仍返回 5 个区间、人数为 0，避免图表空白 */
 const emptyScoreDistribution = () =>
   SCORE_DISTRIBUTION_RANGES.map(range => ({ range, count: 0 }))
 
+/**
+ * 将接口 [{ range, count }, ...] 规范为 5 段完整数据（缺失区间补 0）。
+ * 后端按得分率划分区间，前端只负责对齐横轴标签与柱状高度。
+ */
 const normalizeScoreDistribution = (data) => {
   if (!Array.isArray(data) || data.length === 0) {
     return emptyScoreDistribution()
@@ -433,6 +450,7 @@ const normalizeScoreDistribution = (data) => {
   }))
 }
 
+/** 选中考试后由 refreshSelected 调用；定时刷新也会间接更新 */
 const loadScoreDistribution = async (examId) => {
   scoreDistributionLoading.value = true
   scoreDistributionError.value = ''
@@ -453,7 +471,8 @@ const questionDialogVisible = ref(false)
 const examTimeRange = ref([])
 let refreshTimer = null
 
-// ---------- 测试用例管理状态 ----------
+// ---------- 测试用例管理（编程题） ----------
+// 对话框内表格为「草稿」：增删行只改本地 testCases，点「保存全部」才调用 batchSave
 const testCaseDialogVisible = ref(false)
 const testCaseQuestion = ref({})
 const testCases = ref([])
@@ -526,6 +545,7 @@ const refreshSelected = async () => {
     console.error('Failed to refresh teacher monitor:', error)
     ElMessage.error('刷新考试监控失败')
   }
+  // 监控、题目、学生成绩与得分率分布一并刷新（分布接口独立，避免 statistics 过大）
   await loadScoreDistribution(examId)
 }
 
@@ -631,6 +651,7 @@ const deleteQuestion = async (question) => {
 
 // ---------- 测试用例管理方法 ----------
 
+/** 打开对话框并拉取该题已有用例（教师可见公开+隐藏用例） */
 const openTestCaseDialog = async (question) => {
   testCaseQuestion.value = question
   testCaseDialogVisible.value = true
@@ -654,6 +675,7 @@ const openTestCaseDialog = async (question) => {
   }
 }
 
+/** 在表格末尾追加一行空用例（id 为 null 表示尚未入库） */
 const addTestCaseRow = () => {
   testCases.value.push({
     id: null,
@@ -666,10 +688,15 @@ const addTestCaseRow = () => {
   })
 }
 
+/** 仅从当前表格移除一行，需保存后后端才会删除对应记录 */
 const removeTestCaseRow = (index) => {
   testCases.value.splice(index, 1)
 }
 
+/**
+ * 整表替换保存：后端 delete 该题全部旧用例后按当前行顺序 insert。
+ * 空表也会提交，表示清空该题所有测试用例。
+ */
 const saveTestCases = async () => {
   if (!testCaseQuestion.value.id) return
   testCaseSaving.value = true

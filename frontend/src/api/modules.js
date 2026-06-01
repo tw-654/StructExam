@@ -61,6 +61,7 @@ export const examApi = {
   getStatistics(id) {
     return api.get(`/exam/teacher/${id}/statistics`)
   },
+  /** 成绩分布：按得分率区间统计人数，供教师端柱状图使用 */
   getScoreDistribution(examId) {
     return api.get(`/exam/teacher/${examId}/score-distribution`)
   },
@@ -132,10 +133,16 @@ export const sandboxApi = {
   }
 }
 
+/**
+ * 编程题测试用例（exam-service QuestionTestCaseController）
+ * 教师端表格「保存全部」走 batchSave（整题替换）；单条增删改接口备用。
+ */
 export const testCaseApi = {
+  /** 学生端：仅 isPublic=true 的样例 */
   listPublic(questionId) {
     return api.get(`/question/test-case/public/${questionId}`)
   },
+  /** 教师端：某题全部用例（含隐藏） */
   listForTeacher(questionId) {
     return api.get(`/question/test-case/teacher/${questionId}`)
   },
@@ -148,6 +155,7 @@ export const testCaseApi = {
   remove(id) {
     return api.delete(`/question/test-case/teacher/${id}`)
   },
+  /** 与对话框「保存全部」对应：后端 replaceAll 先删后插 */
   batchSave(questionId, items) {
     return api.put(`/question/test-case/teacher/batch/${questionId}`, items)
   }

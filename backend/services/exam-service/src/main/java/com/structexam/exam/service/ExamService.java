@@ -437,9 +437,14 @@ public class ExamService {
         return records.size();
     }
 
+    /** 得分率区间标签，与前端 TeacherDashboard.SCORE_DISTRIBUTION_RANGES 保持一致 */
     private static final List<String> SCORE_RATE_RANGES = Arrays.asList(
             "<60%", "60%-70%", "70%-80%", "80%-90%", "90%-100%");
 
+    /**
+     * 构建成绩分布：对每个进入过考试的学生算得分率，归入对应区间并计数。
+     * 注意：统计对象为全部 exam_record（含 IN_PROGRESS），与仅已交卷统计不同。
+     */
     private List<ScoreDistributionBucketDTO> buildScoreDistribution(Exam exam, List<ExamRecord> records) {
         Map<String, Integer> bucketCounts = new LinkedHashMap<>();
         for (String range : SCORE_RATE_RANGES) {
@@ -469,7 +474,10 @@ public class ExamService {
     }
 
     /**
-     * 试卷总分：优先 t_exam.total_score，否则对该试卷下题目分值求和。
+     * 试卷总分（得分率分母）。
+     * 优先 t_exam.total_score（教师建卷时填的「总分」，默认常为 100）；
+     * 仅当考试总分为空或 ≤0 时，才对该卷题目 score 求和。
+     * 若题目合计与考试总分不一致，得分率会与「按题目满分折算」的直觉不符，需教师对齐总分字段。
      */
     private int resolvePaperTotalScore(Exam exam) {
         if (exam.getTotalScore() != null && exam.getTotalScore() > 0) {
@@ -484,7 +492,11 @@ public class ExamService {
     }
 
     /**
-     * 学生实际得分：优先 t_exam_record.score，否则对该生各题提交得分按题目取最高后求和。
+     * 学生实际得分（得分率分子）。
+     * 1) 若 t_exam_record.score 非空（如教师执行 gradeObjective 写入），仅用该字段；
+     * 2) 否则按题目汇总 t_code_submission.score，同一题多次提交取最高分；
+     * 未作答题无提交记录时不计入（等效 0 分）。
+     * 编程题单题分来自判题模块按用例权重折算后的 submission.score。
      */
     private int resolveStudentTotalScore(ExamRecord record, List<CodeSubmission> submissions) {
         if (record.getScore() != null) {
@@ -505,6 +517,7 @@ public class ExamService {
                 .sum();
     }
 
+    /** 将得分率百分比映射到固定区间标签（左闭右开，60% 归入 60%-70%） */
     private String resolveScoreRateRange(double scoreRatePercent) {
         if (scoreRatePercent < 60) {
             return "<60%";

@@ -64,6 +64,7 @@
           <div ref="editorRef" class="monaco-editor"></div>
         </div>
 
+        <!-- 运行代码输出区：高度随内容伸缩，错误行用 pre 保留换行 -->
         <div class="terminal-container" v-if="showTerminal">
           <div class="terminal-header">
             <span>终端</span>
@@ -782,6 +783,7 @@ onBeforeUnmount(() => {
   color: #fff;
 }
 
+/* 内容少时较矮；过长时 max-height 内滚动，避免占满整页 */
 .terminal-body {
   padding: 12px;
   min-height: 2.5rem;
@@ -883,6 +885,7 @@ onBeforeUnmount(() => {
   margin-bottom: 6px;
 }
 
+/* 提交本题后的编译/运行错误：与终端同样支持换行与超长滚动 */
 .error-pre {
   font-family: Consolas, Monaco, monospace;
   font-size: 13px;

@@ -99,6 +99,10 @@ public class ExamController {
         return ApiResponse.success(examService.getExamStatistics(id, viewManagerId(role)));
     }
 
+    /**
+     * 教师端成绩分布：按得分率区间统计人数（与 statistics 内嵌的 scoreDistribution 同源逻辑）。
+     * 得分率 = 学生实际得分 / 试卷总分 × 100，区间见 ExamService.SCORE_RATE_RANGES。
+     */
     @GetMapping("/teacher/{id}/score-distribution")
     public ApiResponse<List<ScoreDistributionBucketDTO>> getScoreDistribution(
             @PathVariable Long id,

@@ -1,3 +1,9 @@
+<!--
+  教师端成绩分布柱状图（ECharts）
+  - 入参 data: [{ range: '<60%', count: n }, ...]，由 TeacherDashboard.normalizeScoreDistribution 提供
+  - 横轴：得分率区间；纵轴：该区间内学生人数
+  - 切换考试或接口刷新时 watch data 重绘；组件卸载时 dispose 防止泄漏
+-->
 <template>
   <div ref="chartRef" class="score-distribution-chart" />
 </template>
@@ -7,6 +13,7 @@ import { ref, watch, onMounted, onBeforeUnmount, nextTick } from 'vue'
 import * as echarts from 'echarts'
 
 const props = defineProps({
+  /** 固定 5 个得分率区间及人数，见 TeacherDashboard.SCORE_DISTRIBUTION_RANGES */
   data: {
     type: Array,
     default: () => []
@@ -17,6 +24,7 @@ const chartRef = ref(null)
 let chartInstance = null
 let resizeObserver = null
 
+/** 根据桶数据生成 ECharts option（标题、tooltip、柱状 series） */
 const buildOption = (buckets) => {
   const list = Array.isArray(buckets) ? buckets : []
   const ranges = list.map(item => item.range)
@@ -85,6 +93,7 @@ const buildOption = (buckets) => {
   }
 }
 
+/** 初始化或更新图表；setOption 第二个参数 true 表示不与旧 option 合并 */
 const renderChart = async () => {
   await nextTick()
   if (!chartRef.value) return
@@ -97,6 +106,7 @@ const renderChart = async () => {
   chartInstance.resize()
 }
 
+/** 离开页面时释放实例与 ResizeObserver */
 const disposeChart = () => {
   resizeObserver?.disconnect()
   resizeObserver = null

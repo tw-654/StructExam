@@ -15,6 +15,10 @@ import org.springframework.util.StringUtils;
 import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * 编程题测试用例维护：供判题服务读取 input/expectedOutput/weight/timeLimit 等。
+ * 教师端 UI 以「整表替换」为主（replaceAll），单条 create/update/delete 供 API 直接调用。
+ */
 @Service
 public class QuestionTestCaseService {
 
