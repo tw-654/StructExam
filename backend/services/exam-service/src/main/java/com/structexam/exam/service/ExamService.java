@@ -386,7 +386,10 @@ public class ExamService {
         dto.setAverageScore(scores.isEmpty() ? 0D : scores.stream().mapToInt(Integer::intValue).average().orElse(0D));
         dto.setMaxScore(scores.isEmpty() ? 0 : scores.stream().mapToInt(Integer::intValue).max().orElse(0));
         dto.setMinScore(scores.isEmpty() ? 0 : scores.stream().mapToInt(Integer::intValue).min().orElse(0));
-        dto.setScoreDistribution(buildScoreDistribution(exam, records));
+
+        List<ScoreDistributionBucketDTO> rateDistribution = buildScoreDistribution(exam, records);
+        dto.setScoreDistribution(toDistributionMap(rateDistribution));
+        dto.setScoreRanges(toScoreRanges(rateDistribution, records.size()));
         return dto;
     }
 
@@ -540,6 +543,26 @@ public class ExamService {
             result.add(new ScoreDistributionBucketDTO(range, bucketCounts.getOrDefault(range, 0)));
         }
         return result;
+    }
+
+    /** 转为 ExamStatisticsDTO.scoreDistribution（Map）供统计接口序列化 */
+    private Map<String, Integer> toDistributionMap(List<ScoreDistributionBucketDTO> buckets) {
+        Map<String, Integer> map = new LinkedHashMap<>();
+        for (ScoreDistributionBucketDTO bucket : buckets) {
+            map.put(bucket.getRange(), bucket.getCount());
+        }
+        return map;
+    }
+
+    /** 转为带占比的 scoreRanges，供教师端「分数段分布」条形展示 */
+    private List<ExamStatisticsDTO.ScoreRangeDTO> toScoreRanges(List<ScoreDistributionBucketDTO> buckets,
+                                                                  int totalStudents) {
+        return buckets.stream()
+                .map(bucket -> new ExamStatisticsDTO.ScoreRangeDTO(
+                        bucket.getRange(),
+                        bucket.getCount(),
+                        totalStudents == 0 ? 0D : bucket.getCount() * 100.0 / totalStudents))
+                .collect(Collectors.toList());
     }
 
     private Exam getTeacherOwnedExam(Long examId, Long teacherId) {
