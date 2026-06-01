@@ -1,7 +1,6 @@
 package com.structexam.exam.dto;
 
 import java.util.List;
-import java.util.Map;
 
 public class ExamStatisticsDTO {
     private Long examId;
@@ -21,6 +20,9 @@ public class ExamStatisticsDTO {
     private Map<String, Integer> scoreDistribution;
     private List<ScoreRangeDTO> scoreRanges;
     private Map<String, Double> gradeDistribution;
+
+    /** 按得分率分段的成绩分布 */
+    private List<ScoreDistributionBucketDTO> scoreDistribution;
 
     public Long getExamId() {
         return examId;
@@ -94,103 +96,11 @@ public class ExamStatisticsDTO {
         this.minScore = minScore;
     }
 
-    public Double getPassRate() {
-        return passRate;
-    }
-
-    public void setPassRate(Double passRate) {
-        this.passRate = passRate;
-    }
-
-    public Integer getPassCount() {
-        return passCount;
-    }
-
-    public void setPassCount(Integer passCount) {
-        this.passCount = passCount;
-    }
-
-    public Integer getFailCount() {
-        return failCount;
-    }
-
-    public void setFailCount(Integer failCount) {
-        this.failCount = failCount;
-    }
-
-    public Double getMedianScore() {
-        return medianScore;
-    }
-
-    public void setMedianScore(Double medianScore) {
-        this.medianScore = medianScore;
-    }
-
-    public Double getStdDev() {
-        return stdDev;
-    }
-
-    public void setStdDev(Double stdDev) {
-        this.stdDev = stdDev;
-    }
-
-    public Map<String, Integer> getScoreDistribution() {
+    public List<ScoreDistributionBucketDTO> getScoreDistribution() {
         return scoreDistribution;
     }
 
-    public void setScoreDistribution(Map<String, Integer> scoreDistribution) {
+    public void setScoreDistribution(List<ScoreDistributionBucketDTO> scoreDistribution) {
         this.scoreDistribution = scoreDistribution;
-    }
-
-    public List<ScoreRangeDTO> getScoreRanges() {
-        return scoreRanges;
-    }
-
-    public void setScoreRanges(List<ScoreRangeDTO> scoreRanges) {
-        this.scoreRanges = scoreRanges;
-    }
-
-    public Map<String, Double> getGradeDistribution() {
-        return gradeDistribution;
-    }
-
-    public void setGradeDistribution(Map<String, Double> gradeDistribution) {
-        this.gradeDistribution = gradeDistribution;
-    }
-
-    public static class ScoreRangeDTO {
-        private String range;
-        private Integer count;
-        private Double percentage;
-
-        public ScoreRangeDTO(String range, Integer count, Double percentage) {
-            this.range = range;
-            this.count = count;
-            this.percentage = percentage;
-        }
-
-        public String getRange() {
-            return range;
-        }
-
-        public void setRange(String range) {
-            this.range = range;
-        }
-
-        public Integer getCount() {
-            return count;
-        }
-
-        public void setCount(Integer count) {
-            this.count = count;
-        }
-
-        public Double getPercentage() {
-            return percentage;
-        }
-
-        public void setPercentage(Double percentage) {
-            this.percentage = percentage;
-        }
     }
 }

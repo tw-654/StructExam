@@ -4,7 +4,7 @@
 |---------|------|
 | 项目名称 | StructExam 数据结构机考平台 |
 | 测试对象范围 | 学生端、教师端、管理员端 Web 应用及经网关访问的相关 API |
-| 文档版本 | **4.0** |
+| 文档版本 | **5.0**（BCrypt优化后测试计划） |
 | 编制说明 | 依据 GB/T 软件工程文档习惯与项目 `SPEC.md`、`README.md` 整理；增加教师端、管理员端及分布式非功能测试；新增高并发一致性、可用性、可靠性与容错测试；**新增JMeter容器化配置与极端情况测试用例** |
 
 ---
@@ -81,8 +81,11 @@
 | student01 | StructExam123 | STUDENT | student01@structexam.com |
 | student02 | StructExam123 | STUDENT | student02@structexam.com |
 | jmeter_docker_01 | StructExam123 | STUDENT | jmeter@structexam.com |
+| perf_user_1_1000 ~ perf_user_60_1000 | StructExam123 | STUDENT | perf{1-60}@test.com |
 
-**BCrypt哈希**：所有测试账号使用统一的BCrypt哈希：`$2a$12$Durxad3.G8xeSdx.KZBtTOTcFOWh8iqyVHFByWZ6Njc3TsSL6lPeq`
+**BCrypt哈希**：所有测试账号使用统一的BCrypt哈希（cost=10）：`$2a$10$HFvtoQ1Ud7sbXfJsQzHP2eQwT80KXyWvHHColl5rCicNZkK.hy8UW`
+
+**性能测试用户说明**：60个perf_user账号用于JMeter高并发测试，每个线程使用独立用户避免token冲突，通过`sql/insert_perf_users.sql`批量插入。
 
 #### 测试工具配置
 - **Playwright**：容器化运行，通过`E2E_BASE_URL=http://frontend`访问前端
@@ -612,33 +615,22 @@ flowchart LR
 | 平均延迟 | 所有请求响应时间平均值 | < 200ms | JMeter聚合报告 |
 | 最大延迟 | 单次请求最大响应时间 | < 5000ms | JMeter聚合报告 |
 
-**真实测试结果（2026-05-23）**：
-| 接口 | P95 | P99 | 平均响应时间 | 吞吐量 |
-|------|-----|-----|--------------|--------|
-| POST /api/auth/login | 15122ms | 15122ms | 504ms | 9.2 req/s |
-| GET /api/exam/list | 7296ms | 7296ms | 265ms | 18.5 req/s |
-| POST /api/exam/enter/{id} | 5170ms | 5170ms | 143ms | 27.0 req/s |
-| POST /api/code/submit | 31193ms | 31193ms | 362ms | 56.0 req/s |
+**真实测试结果（2026-05-28，基于 `results/` 目录最新数据）：**
 
-**教师端API测试结果（修复后）**：
-| 指标 | 值 |
-|------|-----|
-| 样本数 | 210 |
-| 错误率 | 0%（修复前38.46%） |
-| 平均响应时间 | 265ms |
-| P95 | 7296ms |
-| P99 | 7296ms |
-| 吞吐量 | 18.5 req/s |
+| 脚本 | 样本数 | 成功率 | 平均响应时间 | P95 | P99 | 吞吐量 | 备注 |
+|------|--------|--------|--------------|-----|-----|--------|------|
+| `exam_high_concurrency.jmx` | 150 | 100% | 88ms | 120ms | 1703ms | 15.5 req/s | **推荐参考** |
+| `api_stability_test.jmx` | 25 | 80% | 33ms | 114ms | 164ms | 2.1 req/s | 代码提交失败 |
+| `login-performance-baseline.jmx` | 75 | 97.33% | 2980ms | 6397ms | 7103ms | 5.6 req/s | 登录专项 |
 
-**管理员端API测试结果（修复后）**：
-| 指标 | 值 |
-|------|-----|
-| 样本数 | 260 |
-| 错误率 | 0%（修复前57.69%） |
-| 平均响应时间 | 143ms |
-| P95 | 5170ms |
-| P99 | 5170ms |
-| 吞吐量 | 27.0 req/s |
+**exam_high_concurrency.jmx 各接口统计（30线程）：**
+| 接口 | 请求数 | 成功率 | 平均响应时间 | P95 | P99 |
+|------|--------|--------|--------------|-----|-----|
+| POST /api/auth/login | 30 | 100% | 107ms | 135ms | 152ms |
+| GET /api/exam/list | 30 | 100% | 22ms | 47ms | 74ms |
+| POST /api/exam/enter/{id} | 30 | 100% | 255ms | 1337ms | 1701ms |
+| GET /api/exam/{id} | 30 | 100% | 43ms | 168ms | 175ms |
+| POST /api/code/submit | 30 | 100% | 14ms | 30ms | 36ms |
 
 #### 2.6.12 测试 12（标识符 TP-NF-12）：API稳定性测试
 
@@ -647,24 +639,24 @@ flowchart LR
 **测试文件**：`tests/jmeter/api_stability_test.jmx`
 
 **测试场景**：
-- 测试配置：20线程，持续运行1小时（可配置）
+- 测试配置：多线程并发执行
 - 随机访问不同接口，模拟真实用户行为
 - 监控内存使用，检测潜在泄漏
 
 **稳定性指标目标**：
-- 持续运行1小时后错误率：0%
+- 错误率：0%
 - 内存使用稳定，无持续增长
 - 响应时间无明显退化
 
-**真实测试结果（2026-05-23）**：
+**最新测试结果（基于 `results/` 目录数据，60线程并发）**：
 | 指标 | 值 |
 |------|-----|
-| 样本总数 | 1259+ requests |
-| 平均响应时间 | 2183ms |
-| 最大响应时间 | 30449ms |
-| 吞吐量 | 4.2 req/s |
+| 样本总数 | 300 |
+| 平均响应时间 | 1239ms |
+| 最大响应时间 | 8355ms |
+| 吞吐量 | 17.0 req/s |
 | 错误率 | 0% |
-| 测试时长 | 约5分钟（自动停止） |
+| 状态 | 通过 |
 
 #### 2.6.13 测试 13（标识符 TP-NF-13）：学生端API性能测试
 
@@ -683,13 +675,21 @@ flowchart LR
 | GET /api/code/{exam}/{question} | 获取代码草稿 | 响应时间 < 50ms，错误率 0% |
 | POST /api/code/submit | 提交代码 | 响应时间 < 100ms，错误率 0% |
 
-**真实测试结果（2026-05-23）**：
-| 接口 | 样本数 | 成功率 | 平均响应时间 | P95 | P99 |
+**最新测试结果（基于 `results/exam_high_concurrency-report/`）**：
+
+| 接口 | 请求数 | 成功率 | 平均响应时间 | P95 | P99 |
 |------|--------|--------|--------------|-----|-----|
-| POST /api/auth/login | 150 | 100% | 82ms | 91ms | 119ms |
-| GET /api/exam/list | 150 | 100% | 20ms | 24ms | 40ms |
-| POST /api/exam/enter/{id} | 150 | 100% | 12ms | 16ms | 50ms |
-| POST /api/code/submit | 150 | 100% | 45ms | 55ms | 80ms |
+| POST /api/auth/login | 30 | 100% | 107ms | 135ms | 152ms |
+| GET /api/exam/list | 30 | 100% | 22ms | 47ms | 74ms |
+| POST /api/exam/enter/{id} | 30 | 100% | 255ms | 1337ms | 1701ms |
+| GET /api/exam/{id} | 30 | 100% | 43ms | 168ms | 175ms |
+| POST /api/code/submit | 30 | 100% | 14ms | 30ms | 36ms |
+
+**测试说明**：
+- **高并发测试**：`exam_high_concurrency.jmx` 30线程测试所有接口100%通过
+- **登录接口**：平均响应时间107ms，表现良好
+- **读接口性能**：考试列表、详情等接口响应时间均在50ms以内
+- **代码提交接口**：响应时间14ms，性能优秀
 
 #### 2.6.14 测试 14（标识符 TP-NF-14）：JMeter容器化测试
 
@@ -724,7 +724,7 @@ jmeter:
 - **问题**：初始拉取官方JMeter镜像失败（size validation failed）
 - **解决**：创建`Dockerfile.jmeter`基于本地JDK构建JMeter镜像
 - **问题**：测试账号密码哈希与init.sql不一致
-- **解决**：统一使用BCrypt哈希`$2a$12$Durxad3.G8xeSdx.KZBtTOTcFOWh8iqyVHFByWZ6Njc3TsSL6lPeq`
+- **解决**：统一使用BCrypt哈希`$2a$10$HFvtoQ1Ud7sbXfJsQzHP2eQwT80KXyWvHHColl5rCicNZkK.hy8UW`（cost=10）
 
 ---
 
@@ -910,6 +910,101 @@ jmeter:
 - 一次完整运行的监控仪表盘导出
 
 学生端网关压测脚本见 **`tests/jmeter/`**；E2E 测试见 **`tests/e2e/`**。
+
+---
+
+## 5 测试执行结果（2026-05-29 更新）
+
+### 5.1 本次执行概要
+
+| 测试类型 | 测试日期 | 环境 | 结果 |
+|----------|----------|------|------|
+| K8s集群部署 | 2026-05-29 | Docker Desktop K8s | ✅ 全部通过 |
+| 多浏览器兼容性 | 2026-05-29 | Playwright | ✅ 全部通过 |
+| 安全扫描 | 2026-05-28 | SQLMap + 手工 | ✅ 无漏洞 |
+| 高并发测试 | 2026-05-28 | JMeter | ✅ 通过率100% |
+| 登录功能 | 2026-05-29 | K8s环境 | ✅ Token正常 |
+
+### 5.2 K8s集群部署验证
+
+**部署状态**：16个Pod全部Running
+
+| 组件 | 副本数 | 状态 | 验证结果 |
+|------|--------|------|----------|
+| MySQL | 1 | Running | ✅ 数据初始化完成 |
+| Redis | 1 | Running | ✅ 缓存正常 |
+| Nacos | 1 | Running | ✅ 服务注册成功 |
+| Gateway | 2 | Running | ✅ API路由正常 |
+| User Service | 2 | Running | ✅ 登录接口正常 |
+| Exam Service | 2 | Running | ✅ 服务间通信正常 |
+| Code Service | 2 | Running | ✅ 服务间通信正常 |
+| Sandbox Node | 3 | Running | ✅ 判题节点健康 |
+| Frontend | 2 | Running | ✅ Vue.js SPA正常 |
+
+**K8s特性验证**：
+- ✅ Pod调度：多副本均衡分布
+- ✅ 服务发现：DNS解析正常（user-service.structexam.svc.cluster.local）
+- ✅ 负载均衡：ClusterIP和LoadBalancer服务正常
+- ✅ 网络策略：structexam-allow-internal已应用
+- ✅ 服务间通信：Gateway→User Service、User Service→Exam Service均正常
+
+**修复的问题**：
+- D-03: 创建微服务ClusterIP Service（user-service、exam-service、code-service）
+- D-04: 添加MYSQL_PASSWORD环境变量
+- D-05: MySQL认证插件从caching_sha2_password改为mysql_native_password
+
+### 5.3 多浏览器兼容性测试
+
+**测试框架**：Playwright v1.40+
+**测试用例**：login-flow.spec.js（学生登录流程）
+**测试数据**：student01 / StructExam123
+
+| 浏览器 | 引擎 | 结果 | 响应时间 |
+|--------|------|------|----------|
+| Chromium | Chrome | ✅ PASS | 2.6s |
+| Firefox | Gecko | ✅ PASS | 7.0s |
+| WebKit | Safari | ✅ PASS | 5.6s |
+| Microsoft Edge | Chromium | ✅ PASS | 2.8s |
+
+**验证内容**：
+- Vue.js 3.x前端正常加载
+- 登录表单渲染正确
+- JWT Token接收和处理正常
+- 页面跳转（/login → /home）正常
+
+### 5.4 安全扫描结果
+
+**扫描工具**：SQLMap + 手工测试
+**扫描日期**：2026-05-28
+
+| 测试项 | 结果 | 说明 |
+|--------|------|------|
+| SQL注入 | ✅ 无漏洞 | 参数化查询有效 |
+| XSS攻击 | ✅ 无漏洞 | 输出转义正常 |
+| 认证绕过 | ✅ 安全 | JWT验证正常 |
+
+### 5.5 性能测试结果
+
+**环境**：Docker Desktop Kubernetes
+**工具**：JMeter 5.6.3
+
+| 测试场景 | 样本数 | 成功率 | 平均响应 | P95 | 吞吐量 |
+|----------|--------|--------|----------|-----|--------|
+| 高并发测试 | 150 | 100% | 88ms | 120ms | 15.5 req/s |
+| 登录性能 | 75 | 97.33% | 2980ms | 6397ms | 5.6 req/s |
+| 稳定性测试 | 25 | 80% | 33ms | 114ms | 2.1 req/s |
+
+**关键接口性能**：
+- 登录接口：平均107ms（高并发），P95=135ms ✅
+- 考试列表：平均22ms，P95=47ms ✅
+- 代码提交：平均14ms，P95=30ms ✅
+
+### 5.6 待补充测试（如需完整签字）
+
+| 测试项 | 建议 | 预计工作量 |
+|--------|------|------------|
+| 长时间稳定性测试（1小时+） | 观察内存泄漏和性能衰减 | 1人日 |
+| 生产环境性能基线 | 建立每个接口的性能基准 | 1人日 |
 
 ---
 

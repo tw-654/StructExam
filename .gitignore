@@ -82,5 +82,6 @@ tests/
 *.log
 logs/
 
-# Test results and reports
+# Test results
 results/
+nacos.tar 

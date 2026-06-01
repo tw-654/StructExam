@@ -28,21 +28,27 @@ spring:
         enabled: true
         server-addr: nacos:8848
   datasource:
-    url: jdbc:mysql://${MYSQL_HOST:localhost}:3306/structexam?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai
+    url: jdbc:mysql://${MYSQL_HOST:localhost}:3306/structexam?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai&allowMultiQueries=true&rewriteBatchedStatements=true
     username: root
     password: ${MYSQL_PASSWORD:123456}
     driver-class-name: com.mysql.cj.jdbc.Driver
+    hikari:
+      maximum-pool-size: 20
+      minimum-idle: 5
+      connection-timeout: 30000
+      idle-timeout: 600000
+      max-lifetime: 1800000
   data:
     redis:
       host: ${REDIS_HOST:localhost}
       port: 6379
-      timeout: 10000
+      timeout: 5000
       lettuce:
         pool:
-          max-active: 8
-          max-idle: 8
-          min-idle: 2
-          max-wait: 5000
+          max-active: 32
+          max-idle: 16
+          min-idle: 8
+          max-wait: 3000
 
 mybatis-plus:
   mapper-locations: classpath*:/mapper/**/*.xml

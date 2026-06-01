@@ -1,0 +1,27 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nacos
+  namespace: structexam
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: nacos
+  template:
+    metadata:
+      labels:
+        app: nacos
+    spec:
+      containers:
+      - name: nacos
+        image: nacos/nacos-server:v2.2.3
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 8848
+        - containerPort: 9848
+        env:
+        - name: MODE
+          value: "standalone"
+        - name: NACOS_SERVER_PORT
+          value: "8848"

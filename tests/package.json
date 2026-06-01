@@ -4,9 +4,18 @@
   "version": "1.0.0",
   "description": "StructExam 学生端 E2E 与测试资产",
   "scripts": {
+    "test": "playwright test",
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
-    "test:e2e:headed": "playwright test --headed"
+    "test:e2e:headed": "playwright test --headed",
+    "test:login": "playwright test login-flow.spec.js",
+    "test:student": "playwright test student-routing.spec.js",
+    "test:exam": "playwright test exam-list.spec.js exam-page.spec.js",
+    "test:code": "playwright test code-editor.spec.js",
+    "test:teacher": "playwright test teacher-dashboard.spec.js",
+    "test:admin": "playwright test admin-dashboard.spec.js",
+    "test:distributed": "playwright test distributed.spec.js",
+    "test:resilience": "playwright test resilience.spec.js"
   },
   "devDependencies": {
     "@playwright/test": "^1.49.0"

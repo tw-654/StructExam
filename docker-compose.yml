@@ -58,7 +58,7 @@ services:
       JWT_SECRET: structexam-secret-key-for-jwt-token-generation
       SPRING_PROFILES_ACTIVE: docker
     ports:
-      - "8080:8080"
+      - "8088:8080"
     depends_on:
       nacos:
         condition: service_healthy

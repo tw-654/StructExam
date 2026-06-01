@@ -1,0 +1,25 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: sandbox-node
+  namespace: structexam
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: sandbox-node
+  template:
+    metadata:
+      labels:
+        app: sandbox-node
+    spec:
+      containers:
+      - name: sandbox-node
+        image: structexam-sandbox-node-1:latest
+        ports:
+        - containerPort: 8084
+        env:
+        - name: SPRING_PROFILES_ACTIVE
+          value: "k8s"
+        - name: NACOS_SERVER_ADDR
+          value: "nacos:8848"
