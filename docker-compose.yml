@@ -125,47 +125,47 @@ services:
       nacos:
         condition: service_healthy
 
-  sandbox-node-1:
+  sandbox-node-small:
     build:
       context: .
       dockerfile: Dockerfile.sandbox-node
-    container_name: structexam-sandbox-node-1
-    cpus: '1'
-    mem_limit: 512m
+    container_name: structexam-sandbox-node-small
+    cpus: '0.5'
+    mem_limit: 256m
     environment:
       NACOS_HOST: nacos
       SERVER_PORT: 8084
-      SANDBOX_MAX_CONCURRENCY: 4
+      SANDBOX_MAX_CONCURRENCY: 2
     ports:
       - "18091:8084"
     depends_on:
       nacos:
         condition: service_healthy
 
-  sandbox-node-2:
+  sandbox-node-medium:
     build:
       context: .
       dockerfile: Dockerfile.sandbox-node
-    container_name: structexam-sandbox-node-2
+    container_name: structexam-sandbox-node-medium
     cpus: '1'
     mem_limit: 512m
     environment:
       NACOS_HOST: nacos
       SERVER_PORT: 8084
-      SANDBOX_MAX_CONCURRENCY: 4
+      SANDBOX_MAX_CONCURRENCY: 3
     ports:
       - "18092:8084"
     depends_on:
       nacos:
         condition: service_healthy
 
-  sandbox-node-3:
+  sandbox-node-large:
     build:
       context: .
       dockerfile: Dockerfile.sandbox-node
-    container_name: structexam-sandbox-node-3
-    cpus: '1'
-    mem_limit: 512m
+    container_name: structexam-sandbox-node-large
+    cpus: '2'
+    mem_limit: 1g
     environment:
       NACOS_HOST: nacos
       SERVER_PORT: 8084

@@ -88,7 +88,7 @@ public class DistributedJudgeScheduler {
 
     private void dispatchTask(QueuedJudgeTask queuedTask) {
         JudgeTask task = queuedTask.getTask();
-        Optional<ServiceInstance> nodeOptional = nodeRegistry.selectRoundRobin();
+        Optional<ServiceInstance> nodeOptional = selectNodeByStrategy();
         if (nodeOptional.isEmpty()) {
             if (nodeRegistry.hasHealthyNodeIgnoringLoad()) {
                 queueService.requeue(task, queuedTask.getPayload());
@@ -105,6 +105,15 @@ public class DistributedJudgeScheduler {
         } catch (RejectedExecutionException ex) {
             nodeRegistry.decrementRunningTasks(node);
             queueService.requeue(task, queuedTask.getPayload());
+        }
+    }
+
+    private Optional<ServiceInstance> selectNodeByStrategy() {
+        String strategy = properties.getLoadBalanceStrategy();
+        if ("leastTasks".equalsIgnoreCase(strategy)) {
+            return nodeRegistry.selectLeastTasks();
+        } else {
+            return nodeRegistry.selectRoundRobin();
         }
     }
 

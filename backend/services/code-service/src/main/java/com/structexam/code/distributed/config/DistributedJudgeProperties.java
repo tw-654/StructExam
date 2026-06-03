@@ -35,6 +35,15 @@ public class DistributedJudgeProperties {
     private String localSandboxNodeHost = "localhost";
     private int localSandboxNodePort = 8083;
     private int localSandboxNodeMaxConcurrency = 4;
+    private String loadBalanceStrategy = "roundRobin";
+
+    public String getLoadBalanceStrategy() {
+        return loadBalanceStrategy;
+    }
+
+    public void setLoadBalanceStrategy(String loadBalanceStrategy) {
+        this.loadBalanceStrategy = loadBalanceStrategy;
+    }
 
     public String getQueueKey() {
         return queueKey;

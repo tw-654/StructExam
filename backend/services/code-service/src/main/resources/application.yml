@@ -60,3 +60,4 @@ sandbox:
 distributed:
   judge:
     local-sandbox-node-enabled: true
+    load-balance-strategy: roundRobin

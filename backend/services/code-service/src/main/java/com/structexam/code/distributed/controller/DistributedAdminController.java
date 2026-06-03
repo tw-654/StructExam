@@ -1,11 +1,13 @@
 package com.structexam.code.distributed.controller;
 
+import com.structexam.code.distributed.config.DistributedJudgeProperties;
 import com.structexam.code.distributed.dto.DistributedDashboardSnapshot;
 import com.structexam.code.distributed.dto.JudgeTaskResponse;
 import com.structexam.code.distributed.dto.LoadTestRequest;
 import com.structexam.code.distributed.dto.LoadTestResponse;
 import com.structexam.code.distributed.dto.TestJudgeTaskRequest;
 import com.structexam.code.distributed.service.DistributedAdminService;
+import com.structexam.code.distributed.service.SandboxNodeRegistry;
 import com.structexam.common.dto.ApiResponse;
 import com.structexam.common.exception.BusinessException;
 import org.springframework.http.MediaType;
@@ -16,14 +18,22 @@ import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.Map;
+
 @RestController
 @RequestMapping("/code/distributed/admin")
 public class DistributedAdminController {
 
     private final DistributedAdminService adminService;
+    private final SandboxNodeRegistry nodeRegistry;
+    private final DistributedJudgeProperties properties;
 
-    public DistributedAdminController(DistributedAdminService adminService) {
+    public DistributedAdminController(DistributedAdminService adminService,
+                                     SandboxNodeRegistry nodeRegistry,
+                                     DistributedJudgeProperties properties) {
         this.adminService = adminService;
+        this.nodeRegistry = nodeRegistry;
+        this.properties = properties;
     }
 
     @GetMapping("/snapshot")
@@ -49,6 +59,24 @@ public class DistributedAdminController {
         requireAdmin(role);
         LoadTestRequest safeRequest = request != null ? request : new LoadTestRequest();
         return ApiResponse.success("压测任务已批量入队", adminService.startLoadTest(safeRequest));
+    }
+
+    @PostMapping("/strategy")
+    public ApiResponse<String> switchLoadBalanceStrategy(
+            @RequestHeader(value = "X-User-Role", required = false) String role,
+            @RequestBody Map<String, String> request) {
+        requireAdmin(role);
+        String strategy = request.get("strategy");
+        if (strategy == null || strategy.isBlank()) {
+            throw new BusinessException(400, "策略参数不能为空");
+        }
+        
+        if (!"roundRobin".equalsIgnoreCase(strategy) && !"leastTasks".equalsIgnoreCase(strategy)) {
+            throw new BusinessException(400, "不支持的策略类型: " + strategy);
+        }
+        
+        properties.setLoadBalanceStrategy(strategy);
+        return ApiResponse.success("负载均衡策略已切换为: " + strategy, strategy);
     }
 
     @GetMapping(value = "/dashboard", produces = MediaType.TEXT_HTML_VALUE)
