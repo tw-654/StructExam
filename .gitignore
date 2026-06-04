@@ -82,6 +82,15 @@ tests/
 *.log
 logs/
 
+# 保留测试脚本文件
+!tests/jmeter/*.jmx
+!tests/jmeter/**/*.jmx
+!tests/e2e/*.spec.js
+!tests/e2e/*.config.js
+!tests/playwright.config.js
+!tests/browser-compat-test.ps1
+!tests/security-scan.py
+
 # Test results
 results/
 nacos.tar 
