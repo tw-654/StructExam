@@ -1,0 +1,63 @@
+version: '3.8'
+
+services:
+  jmeter:
+    image: structexam-jmeter:latest
+    volumes:
+      - ./:/test
+      - ./results:/test/results
+    working_dir: /test
+    environment:
+      - JMETER_HOST=gateway
+      - JMETER_PORT=8080
+    networks:
+      - structexam_default
+
+  jmeter-concurrency:
+    image: structexam-jmeter:latest
+    volumes:
+      - ./:/test
+      - ./results:/test/results
+    working_dir: /test
+    command: >
+      -n -t concurrency_consistency.jmx
+      -l results/concurrency_results.jtl
+      -e -o results/concurrency_report
+      -JHOST=gateway -JPORT=8080
+      -JTHREADS=50 -JRAMP_UP_SEC=10 -JLOOP_COUNT=5
+    networks:
+      - structexam_default
+
+  jmeter-availability:
+    image: structexam-jmeter:latest
+    volumes:
+      - ./:/test
+      - ./results:/test/results
+    working_dir: /test
+    command: >
+      -n -t availability_test.jmx
+      -l results/availability_results.jtl
+      -e -o results/availability_report
+      -JHOST=gateway -JPORT=8080
+      -JDURATION_SEC=300 -JUSE_SCHEDULER=true
+    networks:
+      - structexam_default
+
+  jmeter-reliability:
+    image: structexam-jmeter:latest
+    volumes:
+      - ./:/test
+      - ./results:/test/results
+    working_dir: /test
+    command: >
+      -n -t reliability_fault_tolerance.jmx
+      -l results/reliability_results.jtl
+      -e -o results/reliability_report
+      -JHOST=gateway -JPORT=8080
+      -JTHREADS=30 -JLOOP_COUNT=10
+    networks:
+      - structexam_default
+
+networks:
+  structexam_default:
+    external: true

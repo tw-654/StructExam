@@ -77,20 +77,20 @@ SPEC.md
 *.seed
 docker-compose.override.yml
 
-# Logs and temp
-tests/
+# Tests directory - ignore generated content but keep source files
+tests/e2e/test-results/
+tests/e2e/playwright-report/
+tests/e2e/playwright/.cache/
+tests/jmeter/results/
+tests/jmeter/*.jtl
+tests/jmeter/html/
+tests/node_modules/
+tests/tools/
 *.log
 logs/
-
-# 保留测试脚本文件
-!tests/jmeter/*.jmx
-!tests/jmeter/**/*.jmx
-!tests/e2e/*.spec.js
-!tests/e2e/*.config.js
-!tests/playwright.config.js
-!tests/browser-compat-test.ps1
-!tests/security-scan.py
 
 # Test results
 results/
 nacos.tar 
+tests/admin-debug.png
+tests/admin-test-result.png

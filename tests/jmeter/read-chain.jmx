@@ -1,0 +1,161 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<jmeterTestPlan version="1.2" properties="5.0" jmeter="5.6">
+  <hashTree>
+    <TestPlan guiclass="TestPlanGui" testclass="TestPlan" testname="读接口专项压测" enabled="true">
+      <stringProp name="TestPlan.comments">独立测试读接口性能：考试列表、考试详情、题目查询等。避免与登录/提交混合导致分位数失真。目标：读接口P95&lt;15ms</stringProp>
+      <boolProp name="TestPlan.functional_mode">false</boolProp>
+      <boolProp name="TestPlan.serialize_threadgroups">false</boolProp>
+    </TestPlan>
+    <hashTree>
+      <ConfigTestElement guiclass="HttpDefaultsGui" testclass="ConfigTestElement" testname="HTTP 默认值（网关）" enabled="true">
+        <stringProp name="HTTPSampler.domain">${__P(HOST,gateway)}</stringProp>
+        <stringProp name="HTTPSampler.port">${__P(PORT,8080)}</stringProp>
+        <stringProp name="HTTPSampler.protocol">${__P(PROTOCOL,http)}</stringProp>
+        <stringProp name="HTTPSampler.contentEncoding">UTF-8</stringProp>
+        <stringProp name="HTTPSampler.connect_timeout">30000</stringProp>
+        <stringProp name="HTTPSampler.response_timeout">60000</stringProp>
+      </ConfigTestElement>
+      <hashTree/>
+      <CSVDataSet guiclass="CSVDataSetGui" testclass="CSVDataSet" testname="性能测试用户数据" enabled="true">
+        <stringProp name="filename">data/perf_user_accounts.csv</stringProp>
+        <stringProp name="fileEncoding">UTF-8</stringProp>
+        <stringProp name="variableNames">username,password,exam_id,question_id</stringProp>
+        <stringProp name="delimiter">,</stringProp>
+        <boolProp name="quotedData">false</boolProp>
+        <boolProp name="recycle">true</boolProp>
+        <boolProp name="stopThread">false</boolProp>
+        <stringProp name="shareMode">shareMode.all</stringProp>
+      </CSVDataSet>
+      <hashTree/>
+      <ThreadGroup guiclass="ThreadGroupGui" testclass="ThreadGroup" testname="读接口压测线程组 (30线程)" enabled="true">
+        <stringProp name="ThreadGroup.on_sample_error">continue</stringProp>
+        <elementProp name="ThreadGroup.main_controller" elementType="LoopController" guiclass="LoopControlPanel" testclass="LoopController" testname="Loop Controller" enabled="true">
+          <boolProp name="LoopController.continue_forever">false</boolProp>
+          <stringProp name="LoopController.loops">${__P(LOOP_COUNT,10)}</stringProp>
+        </elementProp>
+        <stringProp name="ThreadGroup.num_threads">${__P(THREADS,30)}</stringProp>
+        <stringProp name="ThreadGroup.ramp_time">${__P(RAMP_UP_SEC,5)}</stringProp>
+        <boolProp name="ThreadGroup.scheduler">false</boolProp>
+        <stringProp name="ThreadGroup.duration"></stringProp>
+        <stringProp name="ThreadGroup.delay"></stringProp>
+        <boolProp name="ThreadGroup.same_user_on_next_iteration">false</boolProp>
+      </ThreadGroup>
+      <hashTree>
+        <OnceOnlyController guiclass="OnceOnlyControllerGui" testclass="OnceOnlyController" testname="每线程仅登录一次" enabled="true"/>
+        <hashTree>
+          <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="前置: POST /api/auth/login" enabled="true">
+            <boolProp name="HTTPSampler.postBodyRaw">true</boolProp>
+            <elementProp name="HTTPsampler.Arguments" elementType="Arguments">
+              <collectionProp name="Arguments.arguments">
+                <elementProp name="" elementType="HTTPArgument">
+                  <boolProp name="HTTPArgument.always_encode">false</boolProp>
+                  <stringProp name="Argument.value">{"username":"${username}","password":"${password}"}</stringProp>
+                  <stringProp name="Argument.metadata">=</stringProp>
+                </elementProp>
+              </collectionProp>
+            </elementProp>
+            <stringProp name="HTTPSampler.path">/api/auth/login</stringProp>
+            <stringProp name="HTTPSampler.method">POST</stringProp>
+          </HTTPSamplerProxy>
+          <hashTree>
+            <HeaderManager guiclass="HeaderPanel" testclass="HeaderManager" testname="Content-Type JSON" enabled="true">
+              <collectionProp name="HeaderManager.headers">
+                <elementProp name="" elementType="Header">
+                  <stringProp name="Header.name">Content-Type</stringProp>
+                  <stringProp name="Header.value">application/json;charset=UTF-8</stringProp>
+                </elementProp>
+              </collectionProp>
+            </HeaderManager>
+            <hashTree/>
+            <JSONPostProcessor guiclass="JSONPostProcessorGui" testclass="JSONPostProcessor" testname="提取 access_token" enabled="true">
+              <stringProp name="JSONPostProcessor.referenceNames">access_token</stringProp>
+              <stringProp name="JSONPostProcessor.jsonPathExprs">$.data.token</stringProp>
+              <stringProp name="JSONPostProcessor.match_numbers">0</stringProp>
+              <stringProp name="JSONPostProcessor.defaultValues">TOKEN_EXTRACT_FAILED</stringProp>
+            </JSONPostProcessor>
+            <hashTree/>
+          </hashTree>
+        </hashTree>
+        <HeaderManager guiclass="HeaderPanel" testclass="HeaderManager" testname="Authorization Bearer" enabled="true">
+          <collectionProp name="HeaderManager.headers">
+            <elementProp name="" elementType="Header">
+              <stringProp name="Header.name">Authorization</stringProp>
+              <stringProp name="Header.value">Bearer ${access_token}</stringProp>
+            </elementProp>
+          </collectionProp>
+        </HeaderManager>
+        <hashTree/>
+        <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="GET /api/exam/list" enabled="true">
+          <elementProp name="HTTPsampler.Arguments" elementType="Arguments">
+            <collectionProp name="Arguments.arguments">
+              <elementProp name="pageNum" elementType="HTTPArgument">
+                <boolProp name="HTTPArgument.always_encode">true</boolProp>
+                <stringProp name="Argument.value">1</stringProp>
+                <stringProp name="Argument.metadata">=</stringProp>
+                <boolProp name="HTTPArgument.use_equals">true</boolProp>
+                <stringProp name="Argument.name">pageNum</stringProp>
+              </elementProp>
+              <elementProp name="pageSize" elementType="HTTPArgument">
+                <boolProp name="HTTPArgument.always_encode">true</boolProp>
+                <stringProp name="Argument.value">10</stringProp>
+                <stringProp name="Argument.metadata">=</stringProp>
+                <boolProp name="HTTPArgument.use_equals">true</boolProp>
+                <stringProp name="Argument.name">pageSize</stringProp>
+              </elementProp>
+            </collectionProp>
+          </elementProp>
+          <stringProp name="HTTPSampler.path">/api/exam/list</stringProp>
+          <stringProp name="HTTPSampler.method">GET</stringProp>
+        </HTTPSamplerProxy>
+        <hashTree>
+          <ResponseAssertion guiclass="AssertionGui" testclass="ResponseAssertion" testname="业务码断言" enabled="true">
+            <collectionProp name="Asserion.test_strings">
+              <stringProp name="0">"code":200</stringProp>
+            </collectionProp>
+            <stringProp name="Assertion.custom_message">考试列表查询失败</stringProp>
+            <stringProp name="Assertion.test_field">Assertion.response_data</stringProp>
+            <boolProp name="Assertion.assume_success">false</boolProp>
+            <intProp name="Assertion.test_type">2</intProp>
+          </ResponseAssertion>
+          <hashTree/>
+        </hashTree>
+        <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="GET /api/exam/{id}" enabled="true">
+          <stringProp name="HTTPSampler.path">/api/exam/${exam_id}</stringProp>
+          <stringProp name="HTTPSampler.method">GET</stringProp>
+        </HTTPSamplerProxy>
+        <hashTree>
+          <ResponseAssertion guiclass="AssertionGui" testclass="ResponseAssertion" testname="业务码断言" enabled="true">
+            <collectionProp name="Asserion.test_strings">
+              <stringProp name="0">"code":200</stringProp>
+            </collectionProp>
+            <stringProp name="Assertion.custom_message">考试详情查询失败</stringProp>
+            <stringProp name="Assertion.test_field">Assertion.response_data</stringProp>
+            <boolProp name="Assertion.assume_success">false</boolProp>
+            <intProp name="Assertion.test_type">2</intProp>
+          </ResponseAssertion>
+          <hashTree/>
+        </hashTree>
+        <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="GET /api/code/{exam}/{question}" enabled="true">
+          <stringProp name="HTTPSampler.path">/api/code/${exam_id}/${question_id}</stringProp>
+          <stringProp name="HTTPSampler.method">GET</stringProp>
+        </HTTPSamplerProxy>
+        <hashTree>
+          <ResponseAssertion guiclass="AssertionGui" testclass="ResponseAssertion" testname="业务码断言" enabled="true">
+            <collectionProp name="Asserion.test_strings">
+              <stringProp name="0">"code":200</stringProp>
+            </collectionProp>
+            <stringProp name="Assertion.custom_message">代码草稿获取失败</stringProp>
+            <stringProp name="Assertion.test_field">Assertion.response_data</stringProp>
+            <boolProp name="Assertion.assume_success">false</boolProp>
+            <intProp name="Assertion.test_type">2</intProp>
+          </ResponseAssertion>
+          <hashTree/>
+        </hashTree>
+        <ResultCollector guiclass="SummaryReport" testclass="ResultCollector" testname="读接口压测结果收集" enabled="true">
+          <stringProp name="filename">results/read-chain.jtl</stringProp>
+        </ResultCollector>
+        <hashTree/>
+      </hashTree>
+    </hashTree>
+  </hashTree>
+</jmeterTestPlan>

@@ -1,0 +1,289 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<jmeterTestPlan version="1.2" properties="5.0" jmeter="5.6">
+  <hashTree>
+    <TestPlan guiclass="TestPlanGui" testclass="TestPlan" testname="StructExam API 稳定性测试" enabled="true">
+      <stringProp name="TestPlan.comments">重构版：长时间稳定性测试：模拟系统在持续负载下的稳定性表现。使用BCrypt cost=10测试账号。注：历史数据(cost=12)已过时，需重新执行获取当前准确数据</stringProp>
+      <boolProp name="TestPlan.functional_mode">false</boolProp>
+      <boolProp name="TestPlan.serialize_threadgroups">false</boolProp>
+    </TestPlan>
+    <hashTree>
+      <ConfigTestElement guiclass="HttpDefaultsGui" testclass="ConfigTestElement" testname="HTTP 默认值" enabled="true">
+        <stringProp name="HTTPSampler.domain">${__P(HOST,gateway)}</stringProp>
+        <stringProp name="HTTPSampler.port">${__P(PORT,8080)}</stringProp>
+        <stringProp name="HTTPSampler.protocol">${__P(PROTOCOL,http)}</stringProp>
+        <stringProp name="HTTPSampler.contentEncoding">UTF-8</stringProp>
+        <stringProp name="HTTPSampler.connect_timeout">${__P(CONNECT_TIMEOUT,30000)}</stringProp>
+        <stringProp name="HTTPSampler.response_timeout">${__P(RESPONSE_TIMEOUT,60000)}</stringProp>
+      </ConfigTestElement>
+      <hashTree/>
+      <CookieManager guiclass="CookiePanel" testclass="CookieManager" testname="HTTP Cookie管理器" enabled="true">
+        <boolProp name="CookieManager.clearEachIteration">false</boolProp>
+        <boolProp name="CookieManager.controlledByThread">false</boolProp>
+      </CookieManager>
+      <hashTree/>
+      <ThreadGroup guiclass="ThreadGroupGui" testclass="ThreadGroup" testname="稳定性测试线程组" enabled="true">
+        <stringProp name="ThreadGroup.on_sample_error">continue</stringProp>
+        <elementProp name="ThreadGroup.main_controller" elementType="LoopController" guiclass="LoopControlPanel" testclass="LoopController" testname="Loop Controller" enabled="true">
+          <boolProp name="LoopController.continue_forever">false</boolProp>
+          <stringProp name="LoopController.loops">${__P(LOOP,1)}</stringProp>
+        </elementProp>
+        <stringProp name="ThreadGroup.num_threads">${__P(THREADS,20)}</stringProp>
+        <stringProp name="ThreadGroup.ramp_time">${__P(RAMP_UP_SEC,60)}</stringProp>
+        <boolProp name="ThreadGroup.scheduler">${__P(USE_SCHEDULER,true)}</boolProp>
+        <stringProp name="ThreadGroup.duration">${__P(DURATION_SEC,3600)}</stringProp>
+        <stringProp name="ThreadGroup.delay"></stringProp>
+        <boolProp name="ThreadGroup.same_user_on_next_iteration">true</boolProp>
+      </ThreadGroup>
+      <hashTree>
+        <CSVDataSet guiclass="TestBeanGUI" testclass="CSVDataSet" testname="学生账号数据" enabled="true">
+          <stringProp name="delimiter">,</stringProp>
+          <stringProp name="fileEncoding">UTF-8</stringProp>
+          <stringProp name="filename">/test/data/student_accounts.csv</stringProp>
+          <boolProp name="ignoreFirstLine">true</boolProp>
+          <boolProp name="quotedData">false</boolProp>
+          <boolProp name="recycle">true</boolProp>
+          <stringProp name="shareMode">shareMode.all</stringProp>
+          <boolProp name="stopThread">false</boolProp>
+          <stringProp name="variableNames">username,password,exam_id,question_id</stringProp>
+        </CSVDataSet>
+        <hashTree/>
+        <OnceOnlyController guiclass="OnceOnlyControllerGui" testclass="OnceOnlyController" testname="登录" enabled="true"/>
+        <hashTree>
+          <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="POST /api/auth/login" enabled="true">
+            <boolProp name="HTTPSampler.postBodyRaw">true</boolProp>
+            <elementProp name="HTTPsampler.Arguments" elementType="Arguments">
+              <collectionProp name="Arguments.arguments">
+                <elementProp name="" elementType="HTTPArgument">
+                  <boolProp name="HTTPArgument.always_encode">false</boolProp>
+                  <stringProp name="Argument.value">{"username":"${username}","password":"${password}"}</stringProp>
+                  <stringProp name="Argument.metadata">=</stringProp>
+                </elementProp>
+              </collectionProp>
+            </elementProp>
+            <stringProp name="HTTPSampler.path">/api/auth/login</stringProp>
+            <stringProp name="HTTPSampler.method">POST</stringProp>
+          </HTTPSamplerProxy>
+          <hashTree>
+            <HeaderManager guiclass="HeaderPanel" testclass="HeaderManager" testname="Content-Type JSON" enabled="true">
+              <collectionProp name="HeaderManager.headers">
+                <elementProp name="" elementType="Header">
+                  <stringProp name="Header.name">Content-Type</stringProp>
+                  <stringProp name="Header.value">application/json;charset=UTF-8</stringProp>
+                </elementProp>
+              </collectionProp>
+            </HeaderManager>
+            <hashTree/>
+            <RegexExtractor guiclass="RegexExtractorGui" testclass="RegexExtractor" testname="提取 access_token" enabled="true">
+              <stringProp name="RegexExtractor.refname">access_token</stringProp>
+              <stringProp name="RegexExtractor.regex">"token":"([^"]+)"</stringProp>
+              <stringProp name="RegexExtractor.template">$1$</stringProp>
+              <stringProp name="RegexExtractor.match_number">1</stringProp>
+              <stringProp name="RegexExtractor.default">TOKEN_EXTRACT_FAILED</stringProp>
+            </RegexExtractor>
+            <hashTree/>
+            <ResponseAssertion guiclass="AssertionGui" testclass="ResponseAssertion" testname="业务码断言" enabled="true">
+              <collectionProp name="Asserion.test_strings">
+                <stringProp name="0">"code":200</stringProp>
+              </collectionProp>
+              <stringProp name="Assertion.custom_message">登录失败</stringProp>
+              <stringProp name="Assertion.test_field">Assertion.response_data</stringProp>
+              <boolProp name="Assertion.assume_success">false</boolProp>
+              <intProp name="Assertion.test_type">2</intProp>
+            </ResponseAssertion>
+            <hashTree/>
+          </hashTree>
+        </hashTree>
+        <RandomOrderController guiclass="RandomOrderControllerGui" testclass="RandomOrderController" testname="随机顺序控制器" enabled="true"/>
+        <hashTree>
+          <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="GET /api/exam/list" enabled="true">
+            <elementProp name="HTTPsampler.Arguments" elementType="Arguments">
+              <collectionProp name="Arguments.arguments">
+                <elementProp name="pageNum" elementType="HTTPArgument">
+                  <boolProp name="HTTPArgument.always_encode">true</boolProp>
+                  <stringProp name="Argument.value">1</stringProp>
+                  <stringProp name="Argument.metadata">=</stringProp>
+                  <boolProp name="HTTPArgument.use_equals">true</boolProp>
+                  <stringProp name="Argument.name">pageNum</stringProp>
+                </elementProp>
+                <elementProp name="pageSize" elementType="HTTPArgument">
+                  <boolProp name="HTTPArgument.always_encode">true</boolProp>
+                  <stringProp name="Argument.value">10</stringProp>
+                  <stringProp name="Argument.metadata">=</stringProp>
+                  <boolProp name="HTTPArgument.use_equals">true</boolProp>
+                  <stringProp name="Argument.name">pageSize</stringProp>
+                </elementProp>
+              </collectionProp>
+            </elementProp>
+            <stringProp name="HTTPSampler.path">/api/exam/list</stringProp>
+            <stringProp name="HTTPSampler.method">GET</stringProp>
+          </HTTPSamplerProxy>
+          <hashTree>
+            <HeaderManager guiclass="HeaderPanel" testclass="HeaderManager" testname="Authorization Bearer" enabled="true">
+              <collectionProp name="HeaderManager.headers">
+                <elementProp name="" elementType="Header">
+                  <stringProp name="Header.name">Authorization</stringProp>
+                  <stringProp name="Header.value">Bearer ${access_token}</stringProp>
+                </elementProp>
+                <elementProp name="" elementType="Header">
+                  <stringProp name="Header.name">Content-Type</stringProp>
+                  <stringProp name="Header.value">application/json</stringProp>
+                </elementProp>
+              </collectionProp>
+            </HeaderManager>
+            <hashTree/>
+            <ResponseAssertion guiclass="AssertionGui" testclass="ResponseAssertion" testname="业务码断言" enabled="true">
+              <collectionProp name="Asserion.test_strings">
+                <stringProp name="0">"code":200</stringProp>
+              </collectionProp>
+              <stringProp name="Assertion.custom_message">考试列表查询失败</stringProp>
+              <stringProp name="Assertion.test_field">Assertion.response_data</stringProp>
+              <boolProp name="Assertion.assume_success">false</boolProp>
+              <intProp name="Assertion.test_type">2</intProp>
+            </ResponseAssertion>
+            <hashTree/>
+          </hashTree>
+          <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="GET /api/exam/{id}" enabled="true">
+            <stringProp name="HTTPSampler.path">/api/exam/${exam_id}</stringProp>
+            <stringProp name="HTTPSampler.method">GET</stringProp>
+          </HTTPSamplerProxy>
+          <hashTree>
+            <HeaderManager guiclass="HeaderPanel" testclass="HeaderManager" testname="Authorization Bearer" enabled="true">
+              <collectionProp name="HeaderManager.headers">
+                <elementProp name="" elementType="Header">
+                  <stringProp name="Header.name">Authorization</stringProp>
+                  <stringProp name="Header.value">Bearer ${access_token}</stringProp>
+                </elementProp>
+              </collectionProp>
+            </HeaderManager>
+            <hashTree/>
+            <ResponseAssertion guiclass="AssertionGui" testclass="ResponseAssertion" testname="业务码断言" enabled="true">
+              <collectionProp name="Asserion.test_strings">
+                <stringProp name="0">"code":200</stringProp>
+              </collectionProp>
+              <stringProp name="Assertion.custom_message">考试详情查询失败</stringProp>
+              <stringProp name="Assertion.test_field">Assertion.response_data</stringProp>
+              <boolProp name="Assertion.assume_success">false</boolProp>
+              <intProp name="Assertion.test_type">2</intProp>
+            </ResponseAssertion>
+            <hashTree/>
+          </hashTree>
+          <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="GET /api/code/{exam}/{question}" enabled="true">
+            <stringProp name="HTTPSampler.path">/api/code/${exam_id}/${question_id}</stringProp>
+            <stringProp name="HTTPSampler.method">GET</stringProp>
+          </HTTPSamplerProxy>
+          <hashTree>
+            <HeaderManager guiclass="HeaderPanel" testclass="HeaderManager" testname="Authorization Bearer" enabled="true">
+              <collectionProp name="HeaderManager.headers">
+                <elementProp name="" elementType="Header">
+                  <stringProp name="Header.name">Authorization</stringProp>
+                  <stringProp name="Header.value">Bearer ${access_token}</stringProp>
+                </elementProp>
+              </collectionProp>
+            </HeaderManager>
+            <hashTree/>
+            <ResponseAssertion guiclass="AssertionGui" testclass="ResponseAssertion" testname="业务码断言" enabled="true">
+              <collectionProp name="Asserion.test_strings">
+                <stringProp name="0">"code":200</stringProp>
+              </collectionProp>
+              <stringProp name="Assertion.custom_message">代码草稿获取失败</stringProp>
+              <stringProp name="Assertion.test_field">Assertion.response_data</stringProp>
+              <boolProp name="Assertion.assume_success">false</boolProp>
+              <intProp name="Assertion.test_type">2</intProp>
+            </ResponseAssertion>
+            <hashTree/>
+          </hashTree>
+          <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="POST /api/code/submit" enabled="true">
+            <boolProp name="HTTPSampler.postBodyRaw">true</boolProp>
+            <elementProp name="HTTPsampler.Arguments" elementType="Arguments">
+              <collectionProp name="Arguments.arguments">
+                <elementProp name="" elementType="HTTPArgument">
+                  <boolProp name="HTTPArgument.always_encode">false</boolProp>
+                  <stringProp name="Argument.value">{"examId":"${exam_id}","questionId":"${question_id}","code":"public class Test {}","language":"JAVA"}</stringProp>
+                  <stringProp name="Argument.metadata">=</stringProp>
+                </elementProp>
+              </collectionProp>
+            </elementProp>
+            <stringProp name="HTTPSampler.path">/api/code/submit</stringProp>
+            <stringProp name="HTTPSampler.method">POST</stringProp>
+          </HTTPSamplerProxy>
+          <hashTree>
+            <HeaderManager guiclass="HeaderPanel" testclass="HeaderManager" testname="Authorization Bearer" enabled="true">
+              <collectionProp name="HeaderManager.headers">
+                <elementProp name="" elementType="Header">
+                  <stringProp name="Header.name">Authorization</stringProp>
+                  <stringProp name="Header.value">Bearer ${access_token}</stringProp>
+                </elementProp>
+                <elementProp name="" elementType="Header">
+                  <stringProp name="Header.name">Content-Type</stringProp>
+                  <stringProp name="Header.value">application/json</stringProp>
+                </elementProp>
+              </collectionProp>
+            </HeaderManager>
+            <hashTree/>
+            <ResponseAssertion guiclass="AssertionGui" testclass="ResponseAssertion" testname="业务码断言" enabled="true">
+              <collectionProp name="Asserion.test_strings">
+                <stringProp name="0">"code":200</stringProp>
+              </collectionProp>
+              <stringProp name="Assertion.custom_message">代码提交失败</stringProp>
+              <stringProp name="Assertion.test_field">Assertion.response_data</stringProp>
+              <boolProp name="Assertion.assume_success">false</boolProp>
+              <intProp name="Assertion.test_type">2</intProp>
+            </ResponseAssertion>
+            <hashTree/>
+            <ResponseAssertion guiclass="AssertionGui" testclass="ResponseAssertion" testname="业务断言 - taskId存在" enabled="true">
+              <collectionProp name="Asserion.test_strings">
+                <stringProp name="0">"taskId"</stringProp>
+              </collectionProp>
+              <stringProp name="Assertion.custom_message">taskId缺失</stringProp>
+              <stringProp name="Assertion.test_field">Assertion.response_data</stringProp>
+              <boolProp name="Assertion.assume_success">false</boolProp>
+              <intProp name="Assertion.test_type">2</intProp>
+            </ResponseAssertion>
+            <hashTree/>
+          </hashTree>
+        </hashTree>
+        <ConstantTimer guiclass="ConstantTimerGui" testclass="ConstantTimer" testname="思考时间" enabled="true">
+          <stringProp name="ConstantTimer.delay">${__P(THINK_TIME_MS,2000)}</stringProp>
+        </ConstantTimer>
+        <hashTree/>
+      </hashTree>
+      <ResultCollector guiclass="SummaryReport" testclass="ResultCollector" testname="Summary Report" enabled="true">
+        <boolProp name="ResultCollector.error_logging">false</boolProp>
+        <objProp>
+          <name>saveConfig</name>
+          <value class="SampleSaveConfiguration">
+            <time>true</time>
+            <latency>true</latency>
+            <timestamp>true</timestamp>
+            <success>true</success>
+            <label>true</label>
+            <code>true</code>
+            <message>false</message>
+            <threadName>false</threadName>
+            <dataType>false</dataType>
+            <encoding>false</encoding>
+            <assertions>false</assertions>
+            <subresults>false</subresults>
+            <responseData>false</responseData>
+            <samplerData>false</samplerData>
+            <xml>false</xml>
+            <fieldNames>false</fieldNames>
+            <responseHeaders>false</responseHeaders>
+            <requestHeaders>false</requestHeaders>
+            <responseDataOnError>false</responseDataOnError>
+            <saveAssertionResultsFailureMessage>false</saveAssertionResultsFailureMessage>
+            <assertionsResultsToSave>0</assertionsResultsToSave>
+            <bytes>true</bytes>
+            <sentBytes>true</sentBytes>
+            <url>false</url>
+            <threadCounts>true</threadCounts>
+            <idleTime>true</idleTime>
+            <connectTime>true</connectTime>
+          </value>
+        </objProp>
+        <stringProp name="filename">results/stability_report.jtl</stringProp>
+      </ResultCollector>
+      <hashTree/>
+    </hashTree>
+  </hashTree>
+</jmeterTestPlan>
