@@ -4,29 +4,19 @@
       <el-aside width="280px" class="left-panel">
         <div class="exam-info">
           <h3>{{ examDetail.title }}</h3>
-          <div class="timer" :class="{ danger: remainingSeconds <= 300 }">
-            <span>剩余时间</span>
-            <strong>{{ formattedTime }}</strong>
-          </div>
+          <CountdownTimer 
+            ref="timerRef" 
+            :initial-seconds="remainingSeconds" 
+            @timeout="handleTimeout"
+          />
         </div>
 
-        <div class="question-nav">
-          <h4>题目列表</h4>
-          <div class="question-grid">
-            <div
-              v-for="(q, index) in questions"
-              :key="q.id"
-              class="question-item"
-              :class="{ active: currentQuestionIndex === index, answered: answeredQuestions.includes(q.id) }"
-              @click="selectQuestion(index)"
-            >
-              {{ index + 1 }}
-            </div>
-          </div>
-          <div class="status-summary">
-            <span>已做: {{ answeredQuestions.length }}/{{ questions.length }}</span>
-          </div>
-        </div>
+        <QuestionNav 
+          :questions="questions" 
+          :current-index="currentQuestionIndex" 
+          :answered-ids="answeredQuestions" 
+          @select="selectQuestion"
+        />
 
         <div class="action-buttons">
           <el-button type="primary" @click="handleSaveCode">保存代码</el-button>
@@ -133,6 +123,8 @@ import { examApi, codeApi, judgeRecordApi } from '@/api/modules'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Loading } from '@element-plus/icons-vue'
 import { monaco, monacoReadyPromise } from '@/utils/monacoPreloader'
+import CountdownTimer from '@/components/CountdownTimer.vue'
+import QuestionNav from '@/components/QuestionNav.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -150,9 +142,9 @@ const isRunning = ref(false)
 const terminalLines = ref([])
 const terminalRef = ref(null)
 const answeredQuestions = ref([])
+const timerRef = ref(null)
 
 let editor = null
-let timer = null
 let submitted = false
 let judgePollTimer = null
 
@@ -171,12 +163,7 @@ const judgePassSummary = computed(() => {
 
 const currentQuestion = computed(() => questions.value[currentQuestionIndex.value] || {})
 
-const formattedTime = computed(() => {
-  const hours = Math.floor(remainingSeconds.value / 3600)
-  const minutes = Math.floor((remainingSeconds.value % 3600) / 60)
-  const seconds = remainingSeconds.value % 60
-  return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`
-})
+
 
 const getQuestionTypeText = (type) => {
   const typeMap = {
@@ -538,23 +525,20 @@ const loadExamData = async () => {
   }
 }
 
+const handleTimeout = () => {
+  ElMessage.warning('考试时间已到，正在自动交卷')
+  handleSubmitExam(true)
+}
+
 const startTimer = () => {
-  if (timer) clearInterval(timer)
   if (remainingSeconds.value <= 0) {
     ElMessage.warning('当前考试剩余时间为 0，请回到首页确认考试状态')
     router.push('/home')
     return
   }
-
-  timer = setInterval(() => {
-    if (remainingSeconds.value > 0) {
-      remainingSeconds.value--
-      return
-    }
-    clearInterval(timer)
-    ElMessage.warning('考试时间已到，正在自动交卷')
-    handleSubmitExam(true)
-  }, 1000)
+  if (timerRef.value) {
+    timerRef.value.startTimer()
+  }
 }
 
 watch(language, (newLang) => {
@@ -576,7 +560,9 @@ onMounted(async () => {
 })
 
 onBeforeUnmount(() => {
-  if (timer) clearInterval(timer)
+  if (timerRef.value) {
+    timerRef.value.stopTimer()
+  }
   stopJudgePoll()
   if (editor) editor.dispose()
 })
@@ -608,86 +594,6 @@ onBeforeUnmount(() => {
 .exam-info h3 {
   margin: 0 0 12px 0;
   color: #333;
-}
-
-.timer {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  padding: 12px;
-  background: #f0f9eb;
-  border-radius: 4px;
-}
-
-.timer.danger {
-  background: #fef0f0;
-}
-
-.timer span {
-  font-size: 12px;
-  color: #666;
-}
-
-.timer strong {
-  font-size: 24px;
-  color: #67c23a;
-  font-family: monospace;
-}
-
-.timer.danger strong {
-  color: #f56c6c;
-}
-
-.question-nav {
-  flex: 1;
-  padding: 16px 0;
-  overflow-y: auto;
-}
-
-.question-nav h4 {
-  margin: 0 0 12px 0;
-  color: #333;
-}
-
-.question-grid {
-  display: grid;
-  grid-template-columns: repeat(5, 1fr);
-  gap: 8px;
-}
-
-.question-item {
-  width: 40px;
-  height: 40px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: #f5f5f5;
-  border: 1px solid #d9d9d9;
-  border-radius: 4px;
-  cursor: pointer;
-  font-weight: 500;
-}
-
-.question-item:hover {
-  border-color: #409eff;
-}
-
-.question-item.active {
-  background: #409eff;
-  border-color: #409eff;
-  color: #fff;
-}
-
-.question-item.answered {
-  background: #67c23a;
-  border-color: #67c23a;
-  color: #fff;
-}
-
-.status-summary {
-  margin-top: 12px;
-  font-size: 12px;
-  color: #666;
 }
 
 .action-buttons {
