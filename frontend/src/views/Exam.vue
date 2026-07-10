@@ -132,7 +132,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { examApi, codeApi, judgeRecordApi } from '@/api/modules'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Loading } from '@element-plus/icons-vue'
-import * as monaco from 'monaco-editor'
+import { monaco, monacoReadyPromise } from '@/utils/monacoPreloader'
 
 const route = useRoute()
 const router = useRouter()
@@ -461,8 +461,10 @@ const handleSubmitExam = async (auto = false) => {
   }
 }
 
-const initEditor = () => {
+const initEditor = async () => {
   if (!editorRef.value) return
+
+  await monacoReadyPromise
 
   editor = monaco.editor.create(editorRef.value, {
     value: getDefaultCode(),
@@ -475,7 +477,14 @@ const initEditor = () => {
     lineNumbers: 'on',
     renderLineHighlight: 'line',
     tabSize: 4,
-    insertSpaces: true
+    insertSpaces: true,
+    quickSuggestions: {
+      other: true,
+      comments: true,
+      strings: true
+    },
+    suggestOnTriggerCharacters: true,
+    acceptSuggestionOnEnter: 'smart'
   })
 }
 

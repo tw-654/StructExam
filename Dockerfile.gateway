@@ -1,4 +1,15 @@
-FROM eclipse-temurin:17-jre-alpine
+﻿FROM eclipse-temurin:17-jre-alpine
+
+# 安装时区支持并设置环境变量
+RUN apk add --no-cache tzdata && \
+    cp /usr/share/zoneinfo/Asia/Shanghai /etc/localtime && \
+    echo "Asia/Shanghai" > /etc/timezone
+
+ENV LANG=zh_CN.UTF-8 \
+    LANGUAGE=zh_CN:zh \
+    LC_ALL=zh_CN.UTF-8 \
+    TZ=Asia/Shanghai \
+    JAVA_TOOL_OPTIONS="-Dfile.encoding=UTF-8 -Duser.language=zh -Duser.country=CN -Duser.timezone=Asia/Shanghai"
 
 WORKDIR /app
 
@@ -7,3 +18,4 @@ COPY backend/gateway/target/*.jar app.jar
 EXPOSE 8080
 
 ENTRYPOINT ["java", "-jar", "app.jar"]
+

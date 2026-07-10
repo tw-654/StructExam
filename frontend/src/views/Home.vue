@@ -5,7 +5,14 @@
     </div>
 
     <el-card v-loading="loading">
-      <el-table :data="examList" stripe style="width: 100%">
+      <el-table 
+        :data="examList" 
+        stripe 
+        style="width: 100%"
+        :scroll-y="600"
+        :virtual-scroll="true"
+        :virtual-scroll-item-size="54"
+      >
         <el-table-column prop="title" label="考试名称" min-width="200" />
         <el-table-column prop="duration" label="时长(分钟)" width="120" align="center" />
         <el-table-column prop="totalScore" label="总分" width="100" align="center" />
@@ -43,7 +50,7 @@
           v-model:current-page="pageNum"
           v-model:page-size="pageSize"
           :total="total"
-          :page-sizes="[10, 20, 50]"
+          :page-sizes="[10, 20, 50, 100]"
           layout="total, sizes, prev, pager, next"
           @size-change="handleSizeChange"
           @current-change="handlePageChange"
@@ -100,6 +107,17 @@ const loadExams = async () => {
 
 const formatDate = (dateStr) => {
   if (!dateStr) return '-'
+  // 如果是数组格式 [年, 月, 日, 时, 分, 秒]，转换为Date对象
+  if (Array.isArray(dateStr)) {
+    // 月份需要减1（JavaScript月份从0开始）
+    const year = dateStr[0] || 0
+    const month = (dateStr[1] || 1) - 1
+    const day = dateStr[2] || 1
+    const hour = dateStr[3] || 0
+    const minute = dateStr[4] || 0
+    const second = dateStr[5] || 0
+    return new Date(year, month, day, hour, minute, second).toLocaleString('zh-CN')
+  }
   return new Date(dateStr).toLocaleString('zh-CN')
 }
 
@@ -129,6 +147,21 @@ const getStatusText = (status) => {
   return textMap[status] || status
 }
 
+// 解析日期，支持数组格式和字符串格式
+const parseDate = (dateValue) => {
+  if (!dateValue) return null
+  if (Array.isArray(dateValue)) {
+    const year = dateValue[0] || 0
+    const month = (dateValue[1] || 1) - 1
+    const day = dateValue[2] || 1
+    const hour = dateValue[3] || 0
+    const minute = dateValue[4] || 0
+    const second = dateValue[5] || 0
+    return new Date(year, month, day, hour, minute, second)
+  }
+  return new Date(dateValue)
+}
+
 const canEnter = (exam) => {
   if (isStaff.value) {
     return true
@@ -137,8 +170,8 @@ const canEnter = (exam) => {
     return false
   }
   const now = new Date()
-  const start = new Date(exam.startTime)
-  const end = new Date(exam.endTime)
+  const start = parseDate(exam.startTime)
+  const end = parseDate(exam.endTime)
   return now >= start && now <= end && (exam.status === 'PUBLISHED' || exam.status === 'ONGOING')
 }
 

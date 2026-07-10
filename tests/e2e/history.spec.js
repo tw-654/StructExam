@@ -43,4 +43,37 @@ test.describe('历史记录页面（需登录）', () => {
     const count = await rows.count()
     console.log(`历史记录数量: ${count}`)
   })
+
+  test('历史记录列表虚拟滚动渲染性能', async ({ page }) => {
+    const makeMockRecords = (count) => {
+      return Array.from({ length: count }, (_, index) => ({
+        examId: `EXAM-${1000 + index}`,
+        enterTime: new Date(Date.now() - index * 60000).toISOString(),
+        submitTime: new Date(Date.now() - index * 30000).toISOString(),
+        score: Math.floor(Math.random() * 101),
+        status: index % 2 === 0 ? 'GRADED' : 'SUBMITTED',
+        ipAddress: `192.168.0.${(index % 254) + 1}`
+      }))
+    }
+
+    await page.route('**/exam/record/list', async (route) => {
+      const mockData = { data: makeMockRecords(5000) }
+      await route.fulfill({
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(mockData)
+      })
+    })
+
+    await page.reload({ waitUntil: 'networkidle' })
+    const startTime = Date.now()
+    await page.waitForSelector('.el-table .el-table__row', { timeout: 30_000 })
+    const renderTime = Date.now() - startTime
+    const rows = page.locator('.el-table .el-table__row')
+    const count = await rows.count()
+
+    console.log(`[性能指标] 虚拟滚动历史记录渲染耗时: ${renderTime}ms, 行数: ${count}`)
+    expect(count).toBeGreaterThanOrEqual(5000)
+    expect(renderTime).toBeLessThan(2000)
+  })
 })

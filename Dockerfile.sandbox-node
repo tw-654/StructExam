@@ -1,6 +1,15 @@
-FROM eclipse-temurin:17-jdk-alpine
+﻿FROM eclipse-temurin:17-jdk-alpine
 
-RUN apk add --no-cache python3 gcc g++ musl-dev
+# 安装编译工具和时区支持
+RUN apk add --no-cache python3 gcc g++ musl-dev tzdata && \
+    cp /usr/share/zoneinfo/Asia/Shanghai /etc/localtime && \
+    echo "Asia/Shanghai" > /etc/timezone
+
+ENV LANG=zh_CN.UTF-8 \
+    LANGUAGE=zh_CN:zh \
+    LC_ALL=zh_CN.UTF-8 \
+    TZ=Asia/Shanghai \
+    JAVA_TOOL_OPTIONS="-Dfile.encoding=UTF-8 -Duser.language=zh -Duser.country=CN -Duser.timezone=Asia/Shanghai"
 
 WORKDIR /app
 

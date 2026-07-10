@@ -112,13 +112,8 @@ CREATE TABLE IF NOT EXISTS t_code_version (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='代码版本表';
 
 -- 插入测试数据
-INSERT INTO t_user (username, password, real_name, role, email) VALUES
-('admin', '$2a$10$N.zmdr9k7uOCQb376NoUnuTJ8iAt6Z5EHsM8lE9lBOsl7iAt6Z5EH', '管理员', 'ADMIN', 'admin@structexam.com'),
-('teacher01', '$2a$10$N.zmdr9k7uOCQb376NoUnuTJ8iAt6Z5EHsM8lE9lBOsl7iAt6Z5EH', '张老师', 'TEACHER', 'teacher01@structexam.com'),
-('student01', '$2a$10$N.zmdr9k7uOCQb376NoUnuTJ8iAt6Z5EHsM8lE9lBOsl7iAt6Z5EH', '李同学', 'STUDENT', 'student01@structexam.com');
 
 -- 密码统一为: StructExam123 (BCrypt加密后)
--- 注意: 上述密码是占位符,实际使用时需要正确的BCrypt加密
 -- BCrypt加密的 "StructExam123" (cost=10)
 INSERT INTO t_user (username, password, real_name, role, email, status) VALUES
 ('admin', '$2a$10$HFvtoQ1Ud7sbXfJsQzHP2eQwT80KXyWvHHColl5rCicNZkK.hy8UW', '管理员', 'ADMIN', 'admin@structexam.com', 1),

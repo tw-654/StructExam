@@ -388,7 +388,7 @@ public class ExamService {
         dto.setMinScore(scores.isEmpty() ? 0 : scores.stream().mapToInt(Integer::intValue).min().orElse(0));
 
         List<ScoreDistributionBucketDTO> rateDistribution = buildScoreDistribution(exam, records);
-        dto.setScoreDistribution(toDistributionMap(rateDistribution));
+        dto.setScoreDistribution(rateDistribution);
         dto.setScoreRanges(toScoreRanges(rateDistribution, records.size()));
         return dto;
     }

@@ -3,6 +3,12 @@
 </template>
 
 <script setup>
+import { onMounted } from 'vue'
+import { preloadMonaco } from '@/utils/monacoPreloader'
+
+onMounted(() => {
+  preloadMonaco()
+})
 </script>
 
 <style>

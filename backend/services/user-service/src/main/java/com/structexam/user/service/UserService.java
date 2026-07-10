@@ -8,6 +8,8 @@ import com.structexam.common.entity.User;
 import com.structexam.common.exception.BusinessException;
 import com.structexam.common.util.JwtUtil;
 import com.structexam.user.mapper.UserMapper;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
@@ -27,24 +29,65 @@ public class UserService {
     @Autowired
     private RedisTemplate<String, Object> redisTemplate;
 
+    @Autowired
+    private ObjectMapper objectMapper;
+
     private final BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
+    
+    private static final int MAX_LOGIN_ATTEMPTS = 5;
+    private static final long LOCK_DURATION_MINUTES = 15;
+    private static final long USER_CACHE_DURATION_HOURS = 1;
 
     public LoginResponse login(LoginRequest request) {
-        User user = userMapper.selectOne(
-                new LambdaQueryWrapper<User>().eq(User::getUsername, request.getUsername())
-        );
+        String loginAttemptKey = "user:login:attempt:" + request.getUsername();
+        Integer attempts = (Integer) redisTemplate.opsForValue().get(loginAttemptKey);
+        
+        if (attempts != null && attempts >= MAX_LOGIN_ATTEMPTS) {
+            throw new BusinessException(429, "Too many login attempts, please try again later");
+        }
+
+        String userCacheKey = "user:info:" + request.getUsername();
+        String cachedUserJson = (String) redisTemplate.opsForValue().get(userCacheKey);
+        User user = null;
+
+        if (cachedUserJson != null) {
+            try {
+                user = objectMapper.readValue(cachedUserJson, User.class);
+            } catch (JsonProcessingException e) {
+                user = null;
+            }
+        }
 
         if (user == null) {
+            user = userMapper.selectOne(
+                    new LambdaQueryWrapper<User>().eq(User::getUsername, request.getUsername())
+            );
+
+            if (user != null) {
+                try {
+                    String userJson = objectMapper.writeValueAsString(user);
+                    redisTemplate.opsForValue().set(userCacheKey, userJson, USER_CACHE_DURATION_HOURS, TimeUnit.HOURS);
+                } catch (JsonProcessingException e) {
+                    // Ignore serialization error, will fall back to DB next time
+                }
+            }
+        }
+
+        if (user == null) {
+            incrementLoginAttempts(loginAttemptKey);
             throw new BusinessException(401, "User not found");
         }
 
         if (!passwordEncoder.matches(request.getPassword(), user.getPassword())) {
+            incrementLoginAttempts(loginAttemptKey);
             throw new BusinessException(401, "Invalid password");
         }
 
         if (user.getStatus() == 0) {
             throw new BusinessException(403, "User is disabled");
         }
+
+        redisTemplate.delete(loginAttemptKey);
 
         String token = jwtUtil.generateToken(user.getId(), user.getUsername(), user.getRole());
 
@@ -63,6 +106,11 @@ public class UserService {
                 user.getRole(),
                 jwtUtil.getExpiration()
         );
+    }
+
+    private void incrementLoginAttempts(String key) {
+        redisTemplate.opsForValue().increment(key);
+        redisTemplate.expire(key, LOCK_DURATION_MINUTES, TimeUnit.MINUTES);
     }
 
     public void register(RegisterRequest request) {

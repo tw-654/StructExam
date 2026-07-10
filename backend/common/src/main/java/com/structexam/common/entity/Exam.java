@@ -1,6 +1,7 @@
 package com.structexam.common.entity;
 
 import com.baomidou.mybatisplus.annotation.*;
+import com.alibaba.fastjson2.annotation.JSONField;
 
 import java.time.LocalDateTime;
 
@@ -17,8 +18,10 @@ public class Exam extends BaseEntity {
 
     private Integer totalScore;
 
+    @JSONField(format = "yyyy-MM-dd HH:mm:ss")
     private LocalDateTime startTime;
 
+    @JSONField(format = "yyyy-MM-dd HH:mm:ss")
     private LocalDateTime endTime;
 
     private String status;
